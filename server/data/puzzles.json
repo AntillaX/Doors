@@ -1,0 +1,422 @@
+{
+  "version": "1.0",
+  "puzzles": [
+    {
+      "id": "word_recall_5",
+      "level": 1,
+      "category": "recall",
+      "parameterized": true,
+      "params": {
+        "ask_position": { "type": "int", "min": 1, "max": 5 }
+      },
+      "word_pool": [
+        "ANCHOR", "MIRROR", "BRIDGE", "STILL", "COPPER", "WIND", "HONEST",
+        "RIVER", "STONE", "AMBER", "QUIET", "WHITE", "CANDLE", "MOUNTAIN",
+        "OCEAN", "CLOUD", "FIRE", "RAIN", "SAND", "GRASS", "FOREST",
+        "SHADOW", "GOLDEN", "SILVER", "ROOT", "BRANCH", "FROST", "EMBER",
+        "HOLLOW", "MARSH", "DESERT", "VALLEY", "RIDGE", "STORM", "BREEZE",
+        "DAWN", "DUSK", "VELVET", "STEEL", "GLASS", "LEATHER", "HARBOR",
+        "MEADOW", "WINTER", "SPRING", "AUTUMN", "TWILIGHT", "BEACON", "LANTERN", "COMPASS"
+      ],
+      "word_count": 5,
+      "stimulus": {
+        "type": "flash_sequence",
+        "source": "draw_from_word_pool",
+        "count_field": "word_count",
+        "item_duration_ms": 800
+      },
+      "question": "What was the {ask_position} word? (ordinal)",
+      "question_format": {
+        "ask_position": ["first", "second", "third", "fourth", "fifth"]
+      },
+      "answer_type": "text",
+      "answer_expression": "selected_words[ask_position - 1]",
+      "case_insensitive": true,
+      "is_room_one_default": true
+    },
+
+    {
+      "id": "add_two_numbers",
+      "level": 1,
+      "category": "math",
+      "parameterized": true,
+      "params": {
+        "a": { "type": "int", "min": 12, "max": 49 },
+        "b": { "type": "int", "min": 12, "max": 49 }
+      },
+      "constraints": ["a + b > 30"],
+      "stimulus": {
+        "type": "static_text",
+        "text": ""
+      },
+      "question": "What is {a} + {b}?",
+      "answer_type": "numeric",
+      "answer_expression": "a + b"
+    },
+
+    {
+      "id": "two_heads_prob",
+      "level": 1,
+      "category": "probability",
+      "parameterized": false,
+      "stimulus": {
+        "type": "static_text",
+        "text": "You flip a fair coin twice."
+      },
+      "question": "What is the probability of getting heads both times?",
+      "answer_type": "text",
+      "answer": "1/4",
+      "accepted_answers": ["1/4", "0.25", "25%", "one quarter"]
+    },
+
+    {
+      "id": "time_hours_ahead",
+      "level": 1,
+      "category": "math",
+      "parameterized": true,
+      "params": {
+        "start_hour": { "type": "int", "min": 1, "max": 11 },
+        "start_period": { "type": "choice", "values": ["AM", "PM"] },
+        "hours_ahead": { "type": "int", "min": 3, "max": 9 }
+      },
+      "stimulus": {
+        "type": "static_text",
+        "text": "It is {start_hour}:00 {start_period}."
+      },
+      "question": "What time will it be {hours_ahead} hours from now? (e.g. 5:00 PM)",
+      "answer_type": "text",
+      "answer_expression": "compute_time(start_hour, start_period, hours_ahead)",
+      "answer_format": "H:00 AMPM"
+    },
+
+    {
+      "id": "arithmetic_sequence",
+      "level": 1,
+      "category": "pattern",
+      "parameterized": true,
+      "params": {
+        "start": { "type": "int", "min": 2, "max": 5 },
+        "step": { "type": "int", "min": 2, "max": 5 }
+      },
+      "stimulus": {
+        "type": "static_text",
+        "text": "{start}, {start+step}, {start+2*step}, {start+3*step}, ?"
+      },
+      "question": "What number comes next?",
+      "answer_type": "numeric",
+      "answer_expression": "start + 4 * step"
+    },
+
+    {
+      "id": "sum_difference",
+      "level": 1,
+      "category": "algebra",
+      "parameterized": true,
+      "params": {
+        "sum_total": { "type": "int", "min": 10, "max": 30 },
+        "difference": { "type": "int", "min": 2, "max": 10 }
+      },
+      "constraints": ["(sum_total - difference) % 2 == 0", "sum_total > difference"],
+      "stimulus": {
+        "type": "static_text",
+        "text": "Two numbers sum to {sum_total}. One is {difference} more than the other."
+      },
+      "question": "What is the smaller number?",
+      "answer_type": "numeric",
+      "answer_expression": "(sum_total - difference) / 2"
+    },
+
+    {
+      "id": "odd_one_out_animals",
+      "level": 1,
+      "category": "logic",
+      "parameterized": true,
+      "params": {
+        "variant": { "type": "int", "min": 0, "max": 2 }
+      },
+      "variants": [
+        {
+          "options": ["DOG", "CAT", "SPARROW", "HORSE", "COW"],
+          "answer_index": 2,
+          "reason": "the only bird; rest are mammals"
+        },
+        {
+          "options": ["SHARK", "DOLPHIN", "TUNA", "SALMON", "COD"],
+          "answer_index": 1,
+          "reason": "the only mammal; rest are fish"
+        },
+        {
+          "options": ["EAGLE", "OWL", "BAT", "HAWK", "FALCON"],
+          "answer_index": 2,
+          "reason": "the only mammal; rest are birds"
+        }
+      ],
+      "stimulus": {
+        "type": "static_text",
+        "text": "{variants[variant].options joined by ' · '}"
+      },
+      "question": "Which one does not belong?",
+      "answer_type": "text",
+      "answer_expression": "variants[variant].options[variants[variant].answer_index]",
+      "case_insensitive": true
+    },
+
+    {
+      "id": "recall_positional_sum",
+      "level": 2,
+      "category": "recall",
+      "parameterized": true,
+      "params": {
+        "count": { "type": "int", "min": 5, "max": 6 },
+        "pos_a": { "type": "int", "min": 1, "max": 5 },
+        "pos_b": { "type": "int", "min": 1, "max": 5 }
+      },
+      "constraints": ["pos_a != pos_b", "pos_a <= count", "pos_b <= count"],
+      "stimulus": {
+        "type": "flash_sequence",
+        "source": "random_integers",
+        "value_range": [2, 14],
+        "count_field": "count",
+        "item_duration_ms": 700
+      },
+      "question": "What is the sum of the {pos_a} and {pos_b} numbers?",
+      "question_format": {
+        "pos_a": ["first", "second", "third", "fourth", "fifth", "sixth"],
+        "pos_b": ["first", "second", "third", "fourth", "fifth", "sixth"]
+      },
+      "answer_type": "numeric",
+      "answer_expression": "sequence[pos_a - 1] + sequence[pos_b - 1]"
+    },
+
+    {
+      "id": "bat_and_ball",
+      "level": 2,
+      "category": "algebra",
+      "parameterized": true,
+      "params": {
+        "total_cents": { "type": "int", "min": 105, "max": 220, "step": 5 },
+        "difference_cents": { "type": "int", "min": 80, "max": 200, "step": 10 }
+      },
+      "constraints": [
+        "total_cents > difference_cents",
+        "(total_cents - difference_cents) % 2 == 0"
+      ],
+      "stimulus": {
+        "type": "static_text",
+        "text": "A bat and a ball cost {total_cents} cents together. The bat costs {difference_cents} cents more than the ball."
+      },
+      "question": "How much does the ball cost? (in cents)",
+      "answer_type": "numeric",
+      "answer_expression": "(total_cents - difference_cents) / 2"
+    },
+
+    {
+      "id": "painted_cube_three_faces",
+      "level": 2,
+      "category": "spatial",
+      "parameterized": true,
+      "params": {
+        "n": { "type": "int", "min": 3, "max": 5 }
+      },
+      "stimulus": {
+        "type": "static_text",
+        "text": "A solid cube is painted red on all sides, then cut into {n}×{n}×{n} = {n^3} smaller equal cubes."
+      },
+      "question": "How many of the smaller cubes have exactly 3 red faces?",
+      "answer_type": "numeric",
+      "answer_expression": "8"
+    },
+
+    {
+      "id": "three_mislabeled_boxes",
+      "level": 2,
+      "category": "logic",
+      "parameterized": false,
+      "stimulus": {
+        "type": "static_text",
+        "text": "Three boxes are labeled APPLES, ORANGES, and MIXED. All three labels are wrong. You draw one fruit from the box labeled MIXED — it is an apple."
+      },
+      "question": "What does the box labeled ORANGES actually contain?",
+      "answer_type": "text",
+      "answer": "MIXED",
+      "accepted_answers": ["MIXED", "MIX", "BOTH", "APPLES AND ORANGES"],
+      "case_insensitive": true
+    },
+
+    {
+      "id": "train_duration",
+      "level": 2,
+      "category": "math",
+      "parameterized": true,
+      "params": {
+        "start_hour": { "type": "int", "min": 1, "max": 4 },
+        "start_minute": { "type": "int", "min": 5, "max": 55, "step": 5 },
+        "duration_hours": { "type": "int", "min": 1, "max": 3 },
+        "duration_minutes": { "type": "int", "min": 15, "max": 55, "step": 5 }
+      },
+      "stimulus": {
+        "type": "static_text",
+        "text": "A train leaves the station at {start_hour}:{start_minute:02d} PM and arrives at its destination after {duration_hours} hour(s) and {duration_minutes} minutes."
+      },
+      "question": "What time does the train arrive? (e.g. 4:35 PM)",
+      "answer_type": "text",
+      "answer_expression": "compute_arrival(start_hour, start_minute, duration_hours, duration_minutes)",
+      "answer_format": "H:MM PM"
+    },
+
+    {
+      "id": "dice_sum_probability",
+      "level": 2,
+      "category": "probability",
+      "parameterized": true,
+      "params": {
+        "target_sum": { "type": "int", "min": 5, "max": 9 }
+      },
+      "stimulus": {
+        "type": "static_text",
+        "text": "You roll two standard six-sided dice."
+      },
+      "question": "What is the probability that the sum is {target_sum}? (as a fraction in lowest terms)",
+      "answer_type": "text",
+      "answer_expression": "dice_sum_fraction(target_sum)",
+      "accepted_answers_per_target": {
+        "5": ["1/9", "4/36"],
+        "6": ["5/36"],
+        "7": ["1/6", "6/36"],
+        "8": ["5/36"],
+        "9": ["1/9", "4/36"]
+      }
+    },
+
+    {
+      "id": "wason_card_task",
+      "level": 2,
+      "category": "logic",
+      "parameterized": false,
+      "stimulus": {
+        "type": "static_text",
+        "text": "Four cards are on a table. Each card has a letter on one side and a number on the other. The visible sides show: A, 4, K, 7. Rule: every vowel must have an even number on the other side."
+      },
+      "question": "Which two cards must you flip to verify the rule? (e.g. A, 7)",
+      "answer_type": "text",
+      "answer": "A, 7",
+      "accepted_answers": ["A, 7", "A and 7", "A,7", "7, A", "7 and A", "7,A"],
+      "case_insensitive": true
+    },
+
+    {
+      "id": "average_speed",
+      "level": 3,
+      "category": "math",
+      "parameterized": true,
+      "params": {
+        "distance": { "type": "int", "min": 40, "max": 80, "step": 10 },
+        "speed_a": { "type": "int", "min": 40, "max": 80, "step": 10 },
+        "speed_b": { "type": "int", "min": 20, "max": 60, "step": 10 }
+      },
+      "constraints": ["speed_a > speed_b"],
+      "stimulus": {
+        "type": "static_text",
+        "text": "A car drives the first {distance} miles at {speed_a} mph, then drives another {distance} miles at {speed_b} mph."
+      },
+      "question": "What is the car's average speed for the whole trip? (mph, integer)",
+      "answer_type": "numeric",
+      "answer_expression": "round(2 * speed_a * speed_b / (speed_a + speed_b))",
+      "answer_tolerance": 1
+    },
+
+    {
+      "id": "frog_in_well",
+      "level": 3,
+      "category": "math",
+      "parameterized": true,
+      "params": {
+        "well_height": { "type": "int", "min": 25, "max": 50 },
+        "day_climb": { "type": "int", "min": 3, "max": 6 },
+        "night_slip": { "type": "int", "min": 1, "max": 3 }
+      },
+      "constraints": [
+        "day_climb > night_slip + 1",
+        "well_height > day_climb * 3"
+      ],
+      "stimulus": {
+        "type": "static_text",
+        "text": "A frog is at the bottom of a {well_height}-foot well. Each day it climbs {day_climb} feet up. Each night it slips {night_slip} feet back down."
+      },
+      "question": "On what day does the frog escape the well?",
+      "answer_type": "numeric",
+      "answer_expression": "math.ceil((well_height - day_climb) / (day_climb - night_slip)) + 1"
+    },
+
+    {
+      "id": "monty_hall",
+      "level": 3,
+      "category": "probability",
+      "parameterized": false,
+      "stimulus": {
+        "type": "static_text",
+        "text": "Three doors. A prize is behind one. You pick Door 1. The host (who knows where the prize is) opens Door 3, revealing nothing. You may keep Door 1 or switch to Door 2."
+      },
+      "question": "To maximize your chance, you should: KEEP, SWITCH, or DOESN'T MATTER?",
+      "answer_type": "choice",
+      "options": ["KEEP", "SWITCH", "DOESN'T MATTER"],
+      "correct_option": 1
+    },
+
+    {
+      "id": "bird_between_trains",
+      "level": 3,
+      "category": "math",
+      "parameterized": true,
+      "params": {
+        "distance": { "type": "int", "min": 80, "max": 150, "step": 10 },
+        "speed_a": { "type": "int", "min": 30, "max": 60, "step": 10 },
+        "speed_b": { "type": "int", "min": 40, "max": 70, "step": 10 },
+        "bird_speed": { "type": "int", "min": 70, "max": 100, "step": 10 }
+      },
+      "constraints": ["bird_speed > speed_a", "bird_speed > speed_b"],
+      "stimulus": {
+        "type": "static_text",
+        "text": "Two trains are {distance} miles apart, heading toward each other. Train A moves at {speed_a} mph and Train B moves at {speed_b} mph. A bird flies from Train A at {bird_speed} mph, reaches Train B, flies back, and continues bouncing between the trains until they meet."
+      },
+      "question": "How far has the bird flown in total when the trains meet? (miles)",
+      "answer_type": "numeric",
+      "answer_expression": "bird_speed * distance / (speed_a + speed_b)",
+      "answer_tolerance": 1
+    },
+
+    {
+      "id": "tuesday_boy",
+      "level": 4,
+      "category": "probability",
+      "parameterized": false,
+      "stimulus": {
+        "type": "static_text",
+        "text": "A man has two children. You learn that at least one of them is a boy born on a Tuesday. (Assume each child is independently boy/girl with equal probability, and independently born on any day of the week with equal probability.)"
+      },
+      "question": "What is the probability both children are boys?",
+      "answer_type": "choice",
+      "options": ["1/3", "13/27", "1/2", "27/49"],
+      "correct_option": 1
+    },
+
+    {
+      "id": "clock_angle",
+      "level": 4,
+      "category": "math",
+      "parameterized": true,
+      "params": {
+        "hour": { "type": "int", "min": 1, "max": 12 },
+        "minute": { "type": "int", "min": 5, "max": 55, "step": 5 }
+      },
+      "stimulus": {
+        "type": "static_text",
+        "text": "An analog clock shows the time {hour}:{minute:02d}."
+      },
+      "question": "What is the smaller angle between the hour and minute hands in degrees? (one decimal place if needed, e.g. 7.5)",
+      "answer_type": "numeric",
+      "answer_expression": "min(abs(30 * hour - 5.5 * minute), 360 - abs(30 * hour - 5.5 * minute))",
+      "answer_tolerance": 0.5
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "doors",
+  "version": "1.0.0",
+  "description": "DOORS — 5-player cooperative puzzle-room game",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "ws": "^8.18.0"
+  }
+}
