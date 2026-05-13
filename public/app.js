@@ -123,13 +123,17 @@ function handleMessage(msg) {
       renderLobby(msg);
       break;
 
-    case 'game_starting':
+    case 'game_starting': {
       showScreen('game');
       applyFullState(msg);
       buildProgressMarks(msg.totalRooms || 10);
       showRulesModal(true, msg.countdown || 45);
       updateReadyStatus(msg.readyPlayerIds || [], msg.players || []);
+      const playerCount = (msg.players || []).filter(p => !p.eliminated).length;
+      gtag('event', playerCount >= 5 ? 'doors_game_started_5p' : 'doors_game_started_4p',
+           { player_count: playerCount });
       break;
+    }
 
     case 'room_started': {
       showScreen('game');
@@ -483,7 +487,8 @@ function renderPuzzleArea(state) {
 
   if ((phase === 'room_vote' || phase === 'room_deliver' || phase === 'room_resolve') && puzzle) {
     $('question-text').textContent = puzzle.question || '';
-    if (puzzle.stimulusType !== 'flash_sequence') {
+    // Only static_text keeps the stimulus visible past the flash phase.
+    if (puzzle.stimulusType === 'static_text') {
       $('stimulus-text').textContent = puzzle.stimulusText || '';
     }
   }
@@ -492,9 +497,9 @@ function renderPuzzleArea(state) {
 function onNewRoom(numeral, puzzle) {
   $('stimulus-text').textContent = '';
   $('question-text').textContent = '';
-  $('flash-display').hidden = true;
-  $('flash-display').style.opacity = '0';
-  $('flash-display').textContent = '';
+  resetFlashDisplay();
+  resetGridDisplay();
+  resetFlashProgress();
   $('resolve-msg').hidden = true;
   $('resolve-msg').classList.remove('visible', 'correct', 'wrong');
   clearDisconnectNotices();
@@ -511,12 +516,111 @@ function onNewRoom(numeral, puzzle) {
 
   if (!puzzle) return;
 
-  if (puzzle.stimulusType === 'flash_sequence' && puzzle.flashItems && puzzle.flashItems.length) {
-    runFlashSequence(puzzle.flashItems, puzzle.flashItemDurationMs || 800);
-  } else {
-    $('stimulus-text').textContent = puzzle.stimulusText || '';
-    $('question-text').textContent = puzzle.question || '';
+  if (puzzle.id) gtag('event', 'doors_puzzle_drawn', { puzzle_id: puzzle.id, level: puzzle.level });
+
+  switch (puzzle.stimulusType) {
+    case 'flash_sequence':
+      if (puzzle.flashItems && puzzle.flashItems.length) {
+        runFlashSequence(puzzle.flashItems, puzzle.flashItemDurationMs || 1000, puzzle.flashTotalMs);
+      }
+      break;
+    case 'grid':
+      if (puzzle.grid) runGridFlash(puzzle.grid, puzzle.flashTotalMs || 6000);
+      break;
+    case 'flash_text':
+      runFlashText(puzzle.stimulusText || '', puzzle.flashTotalMs || 4000);
+      break;
+    case 'static_text':
+    default:
+      $('stimulus-text').textContent = puzzle.stimulusText || '';
+      $('question-text').textContent = puzzle.question || '';
+      break;
   }
+}
+
+function resetFlashDisplay() {
+  const el = $('flash-display');
+  el.hidden = true;
+  el.style.opacity = '0';
+  el.textContent = '';
+}
+
+function resetGridDisplay() {
+  const el = $('grid-display');
+  el.hidden = true;
+  el.classList.remove('visible');
+  el.innerHTML = '';
+}
+
+function startFlashProgress(durationMs) {
+  if (!durationMs || durationMs <= 0) return;
+  const bar = $('flash-progress');
+  const fill = bar.querySelector('.flash-progress-fill');
+  fill.classList.remove('draining');
+  fill.style.animationDuration = '';
+  bar.hidden = false;
+  // Force reflow so the animation restarts cleanly
+  void fill.offsetWidth;
+  fill.style.animationDuration = `${durationMs}ms`;
+  fill.classList.add('draining');
+}
+
+function resetFlashProgress() {
+  const bar = $('flash-progress');
+  const fill = bar.querySelector('.flash-progress-fill');
+  fill.classList.remove('draining');
+  fill.style.animationDuration = '';
+  bar.hidden = true;
+}
+
+function renderGrid(container, grid) {
+  container.innerHTML = '';
+  container.style.gridTemplateColumns = `repeat(${grid[0].length}, auto)`;
+  for (const row of grid) {
+    for (const cell of row) {
+      const div = document.createElement('div');
+      div.className = 'grid-cell';
+      div.textContent = String(cell);
+      container.appendChild(div);
+    }
+  }
+}
+
+async function runGridFlash(grid, durationMs) {
+  if (flashRunning || !grid) return;
+  flashRunning = true;
+  const wrap = $('grid-display');
+  renderGrid(wrap, grid);
+  wrap.hidden = false;
+  await sleep(20);
+  wrap.classList.add('visible');
+  startFlashProgress(durationMs);
+  await sleep(durationMs);
+  wrap.classList.remove('visible');
+  await sleep(200);
+  wrap.hidden = true;
+  resetFlashProgress();
+  flashRunning = false;
+}
+
+async function runFlashText(text, durationMs) {
+  if (flashRunning || !text) return;
+  flashRunning = true;
+  const display = $('flash-display');
+  display.textContent = text;
+  display.hidden = false;
+  display.style.transition = 'opacity 180ms ease';
+  display.style.opacity = '0';
+  await sleep(20);
+  display.style.opacity = '1';
+  startFlashProgress(durationMs);
+  await sleep(durationMs);
+  display.style.transition = 'opacity 220ms ease';
+  display.style.opacity = '0';
+  await sleep(240);
+  display.hidden = true;
+  resetFlashProgress();
+  flashRunning = false;
 }
 
 function showRoomNumeral(numeral) {
@@ -526,7 +630,7 @@ function showRoomNumeral(numeral) {
   setTimeout(() => el.classList.remove('visible'), 1200);
 }
 
-async function runFlashSequence(items, durationMs) {
+async function runFlashSequence(items, perItemMs, totalMs) {
   if (flashRunning) return;
   flashRunning = true;
   const display = $('flash-display');
@@ -534,17 +638,20 @@ async function runFlashSequence(items, durationMs) {
   display.style.transition = 'none';
   display.style.opacity = '0';
 
+  startFlashProgress(totalMs || items.length * perItemMs);
+
   for (const item of items) {
     display.textContent = String(item);
     await sleep(40);
     display.style.transition = 'opacity 150ms ease';
     display.style.opacity = '1';
-    await sleep(Math.max(durationMs - 350, 100));
+    await sleep(Math.max(perItemMs - 350, 100));
     display.style.transition = 'opacity 200ms ease';
     display.style.opacity = '0';
     await sleep(260);
   }
   display.hidden = true;
+  resetFlashProgress();
   flashRunning = false;
 }
 
@@ -721,6 +828,9 @@ function onCorrectAnswer(msg) {
   showResolveMsg('Correct.', 'correct');
 
   if (msg.currentRoom) gtag('event', 'doors_room_cleared', { room: msg.currentRoom });
+  if (lastState && lastState.puzzle) {
+    gtag('event', 'doors_puzzle_correct', { puzzle_id: lastState.puzzle.id, level: lastState.puzzle.level });
+  }
 
   setTimeout(() => {
     wrap.classList.remove('gold-glow');
@@ -731,6 +841,9 @@ function onCorrectAnswer(msg) {
 
 function onWrongAnswer() {
   showResolveMsg('Wrong — a new puzzle is coming.', 'wrong');
+  if (lastState && lastState.puzzle) {
+    gtag('event', 'doors_puzzle_wrong', { puzzle_id: lastState.puzzle.id, level: lastState.puzzle.level });
+  }
   // Reset so the incoming room_started (same room number) triggers onNewRoom
   currentRoomRendered = 0;
 }

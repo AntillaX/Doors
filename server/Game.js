@@ -4,24 +4,30 @@ const bank = require('./PuzzleBank');
 const PuzzleSelector = require('./PuzzleSelector');
 
 const STARTING_POINTS = 10;
-const TOTAL_ROOMS = 10;
+const TOTAL_ROOMS = 10;                   // v2: 10 for both 4p and 5p
 const CORRECT_PENALTY = 3;
 const WRONG_PENALTY = 5;
 const GAME_DURATION_MS = 30 * 60 * 1000;
 const GAME_TIMER_INTERVAL_MS = 5000;
-const ROOM_REVEAL_DELAY_MS = 1500;   // pause for Roman numeral animation before vote opens
-const CORRECT_RESOLVE_MS = 1600;     // door-open transition duration + tiny buffer
-const WRONG_RESOLVE_MS = 1000;       // pause after wrong answer before showing new puzzle
 const MIN_ACTIVE_PLAYERS = 3;
-const PRE_GAME_DELAY_MS = 45000;     // countdown shown to players before room 1 opens
-const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI'];
+const PRE_GAME_DELAY_MS = 45000;          // countdown before room 1 opens
+
+// v2 timing budgets — configurable so v3 visuals can tune independently.
+const ROOM_ENTRY_BEAT_MS = 1000;          // Roman numeral + room-entry pause before vote
+const CORRECT_ANSWER_VERDICT_MS = 1000;   // gold flash on deliverer after correct
+const ROOM_CLEARED_PAUSE_MS = 2000;       // door-open pause before next room (v3 fills with animation)
+const WRONG_ANSWER_VERDICT_MS = 1000;     // amber pulse + verdict text on deliverer
+const WRONG_NEW_PUZZLE_FADE_MS = 500;     // failed puzzle fades, new puzzle fades in
+
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
 
 class Game {
   constructor(players, broadcast, onGameEnd) {
     this.broadcast = broadcast;
     this.onGameEnd = onGameEnd || (() => {});
     const playerCount = players.size;
-    this.totalRooms = playerCount >= 5 ? 11 : 10;
+    this.playerCount = playerCount;
+    this.totalRooms = TOTAL_ROOMS;
     this.maxLevel4  = playerCount >= 5 ? 2 : 1;
     this.selector = new PuzzleSelector(this.maxLevel4);
 
@@ -89,18 +95,17 @@ class Game {
     this.delivererId = null;
     this.delivererText = '';
 
-    const template = this.selector.selectForRoom(roomNumber);
+    const template = this.selector.selectForRoom(roomNumber, this.roomsCleared);
     this.puzzle = bank.resolve(template);
 
-    const flashMs = this.puzzle.flashItems
-      ? this.puzzle.flashItems.length * this.puzzle.flashItemDurationMs + 1000
-      : 0;
+    // Flash time: per-item duration × item count, or total ms for grid/flash_text.
+    const flashMs = this.puzzle.flashTotalMs || 0;
 
     this.phase = 'room_puzzle';
     this.broadcast({ type: 'room_started', ...this.getPublicState() });
 
-    // After the reveal animation + any flash sequence, open voting.
-    this._schedulePhase(() => this._openVote(), ROOM_REVEAL_DELAY_MS + flashMs);
+    // After room entry beat + any flash sequence, open voting.
+    this._schedulePhase(() => this._openVote(), ROOM_ENTRY_BEAT_MS + flashMs);
   }
 
   _openVote() {
@@ -200,12 +205,12 @@ class Game {
       this._schedulePhase(() => {
         if (hitZero) this._doEliminate(playerId, 'zero_points', () => this._advanceRoom());
         else this._advanceRoom();
-      }, CORRECT_RESOLVE_MS);
+      }, CORRECT_ANSWER_VERDICT_MS + ROOM_CLEARED_PAUSE_MS);
     } else {
       this._schedulePhase(() => {
         if (hitZero) this._doEliminate(playerId, 'zero_points', () => this._startRoom(this.currentRoom));
         else this._startRoom(this.currentRoom);
-      }, WRONG_RESOLVE_MS);
+      }, WRONG_ANSWER_VERDICT_MS + WRONG_NEW_PUZZLE_FADE_MS);
     }
 
     return { success: true };
