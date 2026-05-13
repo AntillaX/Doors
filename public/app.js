@@ -18,6 +18,7 @@ let inputHandler = null;
 let keydownHandler = null;
 let doorTriggeredByAnswer = false;  // set by onCorrectAnswer so onNewRoom skips re-triggering
 let rulesCountdownTimer = null;
+let myReadyState = false;
 
 const $ = id => document.getElementById(id);
 
@@ -126,7 +127,8 @@ function handleMessage(msg) {
       showScreen('game');
       applyFullState(msg);
       buildProgressMarks(msg.totalRooms || 10);
-      showRulesModal(true, msg.countdown || 5);
+      showRulesModal(true, msg.countdown || 45);
+      updateReadyStatus(msg.readyPlayerIds || [], msg.players || []);
       break;
 
     case 'room_started': {
@@ -177,6 +179,10 @@ function handleMessage(msg) {
     case 'player_eliminated':
       applyFullState(msg);
       onPlayerEliminated(msg);
+      break;
+
+    case 'player_ready':
+      updateReadyStatus(msg.readyPlayerIds || [], msg.players || []);
       break;
 
     case 'player_disconnected':
@@ -349,17 +355,26 @@ function attachRulesListeners() {
   $('rules-overlay').addEventListener('click', e => {
     if (e.target === $('rules-overlay')) hideRulesModal();
   });
+  $('rules-ready-btn').addEventListener('click', () => {
+    if (myReadyState) return;
+    myReadyState = true;
+    $('rules-ready-btn').disabled = true;
+    $('rules-ready-btn').textContent = 'Ready!';
+    sendAction({ type: 'player_ready' });
+  });
 }
 
 function showRulesModal(withCountdown, seconds) {
   const overlay = $('rules-overlay');
   const cd = $('rules-countdown');
   const closeBtn = $('rules-close-btn');
+  const readyWrap = $('rules-ready-wrap');
   overlay.hidden = false;
 
   if (withCountdown && seconds > 0) {
     cd.hidden = false;
     closeBtn.hidden = true;
+    readyWrap.hidden = false;
     let remaining = seconds;
     cd.textContent = `Starting in ${remaining}…`;
     rulesCountdownTimer = setInterval(() => {
@@ -372,6 +387,7 @@ function showRulesModal(withCountdown, seconds) {
     }, 1000);
   } else {
     cd.hidden = true;
+    readyWrap.hidden = true;
     closeBtn.hidden = false;
   }
 }
@@ -380,7 +396,22 @@ function hideRulesModal() {
   if (rulesCountdownTimer) { clearInterval(rulesCountdownTimer); rulesCountdownTimer = null; }
   $('rules-overlay').hidden = true;
   $('rules-countdown').hidden = true;
+  $('rules-ready-wrap').hidden = true;
   $('rules-close-btn').hidden = false;
+}
+
+function updateReadyStatus(readyPlayerIds, players) {
+  const readyWrap = $('rules-ready-wrap');
+  if (readyWrap.hidden) return;
+  const statusEl = $('rules-ready-status');
+  const readyCount = (readyPlayerIds || []).length;
+  const totalConnected = (players || []).filter(p => !p.eliminated).length;
+  statusEl.textContent = `${readyCount} / ${totalConnected} ready`;
+  if (readyPlayerIds && myId && readyPlayerIds.includes(myId)) {
+    $('rules-ready-btn').disabled = true;
+    $('rules-ready-btn').textContent = 'Ready!';
+    myReadyState = true;
+  }
 }
 
 // ── Player bar ────────────────────────────────────────────────
@@ -901,6 +932,7 @@ function resetGameLocals() {
   currentRoomRendered = 0;
   flashRunning = false;
   doorTriggeredByAnswer = false;
+  myReadyState = false;
   if (rulesCountdownTimer) { clearInterval(rulesCountdownTimer); rulesCountdownTimer = null; }
   clearDisconnectNotices();
   $('answer-input').value = '';

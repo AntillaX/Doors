@@ -970,3 +970,17 @@ body::after {
   color: var(--text-faint);
   text-align: center;
 }
+
+.rules-ready-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.rules-ready-status {
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  text-align: center;
+}
