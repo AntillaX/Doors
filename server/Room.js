@@ -4,6 +4,7 @@ const Game = require('./Game');
 const Player = require('./Player');
 
 const MAX_PLAYERS = 5;
+const MIN_PLAYERS_TO_START = 4;
 // 60-second reconnection window per the DOORS spec.
 const DISCONNECT_GRACE_MS = 60000;
 // Tick interval for broadcasting the countdown to remaining players.
@@ -141,8 +142,8 @@ class Room {
 
   startGame() {
     if (this.state !== 'lobby') return { success: false, error: 'Game already started' };
-    if (this.players.size < MAX_PLAYERS) {
-      return { success: false, error: `Need ${MAX_PLAYERS} players to start` };
+    if (this.players.size < MIN_PLAYERS_TO_START) {
+      return { success: false, error: `Need at least ${MIN_PLAYERS_TO_START} players to start` };
     }
     this.state = 'playing';
     this.game = new Game(this.players, this.broadcast.bind(this), this._onGameEnd.bind(this));

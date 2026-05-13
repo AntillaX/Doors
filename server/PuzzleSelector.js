@@ -14,7 +14,8 @@ const bank = require('./PuzzleBank');
 // with the 20-puzzle v1 bank but guards against edge cases.
 
 class PuzzleSelector {
-  constructor() {
+  constructor(maxLevel4 = 1) {
+    this.maxLevel4 = maxLevel4;
     this.reset();
   }
 
@@ -22,7 +23,7 @@ class PuzzleSelector {
     this.usedIds = new Set();
     this.previousLevel = null;
     this.previousCategory = null;
-    this.level4Used = false;
+    this.level4Count = 0;
   }
 
   // Returns a puzzle template (not yet resolved) for the given room number.
@@ -66,14 +67,14 @@ class PuzzleSelector {
   _baseFilter(p, maxLevel) {
     if (this.usedIds.has(p.id)) return false;
     if (p.level > maxLevel) return false;
-    if (p.level === 4 && this.level4Used) return false;
+    if (p.level === 4 && this.level4Count >= this.maxLevel4) return false;
     return true;
   }
 
   _record(tmpl) {
     if (!tmpl) return;
     this.usedIds.add(tmpl.id);
-    if (tmpl.level === 4) this.level4Used = true;
+    if (tmpl.level === 4) this.level4Count++;
     this.previousLevel = tmpl.level;
     this.previousCategory = tmpl.category;
   }

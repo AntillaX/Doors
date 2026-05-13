@@ -11,15 +11,19 @@ const GAME_DURATION_MS = 30 * 60 * 1000;
 const GAME_TIMER_INTERVAL_MS = 5000;
 const ROOM_REVEAL_DELAY_MS = 1500;   // pause for Roman numeral animation before vote opens
 const CORRECT_RESOLVE_MS = 1600;     // door-open transition duration + tiny buffer
-const WRONG_RESOLVE_MS = 1000;       // pause after wrong answer before re-vote
+const WRONG_RESOLVE_MS = 1000;       // pause after wrong answer before showing new puzzle
 const MIN_ACTIVE_PLAYERS = 3;
-const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+const PRE_GAME_DELAY_MS = 45000;     // countdown shown to players before room 1 opens
+const ROMAN = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI'];
 
 class Game {
   constructor(players, broadcast, onGameEnd) {
     this.broadcast = broadcast;
     this.onGameEnd = onGameEnd || (() => {});
-    this.selector = new PuzzleSelector();
+    const playerCount = players.size;
+    this.totalRooms = playerCount >= 5 ? 11 : 10;
+    this.maxLevel4  = playerCount >= 5 ? 2 : 1;
+    this.selector = new PuzzleSelector(this.maxLevel4);
 
     // Per-player game state. Keyed by id.
     this.players = new Map();
@@ -42,6 +46,7 @@ class Game {
     this.roomsCleared = 0;
     this.puzzle = null;          // full resolved puzzle (includes _answer — never broadcast)
 
+    this.readyPlayers = new Set();
     this.votes = new Map();      // voterId → targetId
     this.delivererId = null;
     this.delivererText = '';
@@ -55,7 +60,25 @@ class Game {
   start() {
     this.gameStartTime = Date.now();
     this.gameTimerInterval = setInterval(() => this._tickGameTimer(), GAME_TIMER_INTERVAL_MS);
-    this._startRoom(1);
+    this.readyPlayers = new Set();
+    this.phase = 'game_starting';
+    this.broadcast({ type: 'game_starting', countdown: Math.ceil(PRE_GAME_DELAY_MS / 1000), ...this.getPublicState() });
+    this._schedulePhase(() => this._startRoom(1), PRE_GAME_DELAY_MS);
+  }
+
+  playerReady(playerId) {
+    if (this.phase !== 'game_starting') return { success: false, error: 'Not in pre-game phase' };
+    const ps = this.players.get(playerId);
+    if (!ps || ps.eliminated) return { success: false, error: 'Player not found' };
+    this.readyPlayers.add(playerId);
+    const connected = this._activePlayers().filter(p => p.connected);
+    const allReady = connected.length > 0 && connected.every(p => this.readyPlayers.has(p.id));
+    this.broadcast({ type: 'player_ready', playerId, ...this.getPublicState() });
+    if (allReady) {
+      this._clearPhaseTimeout();
+      this._startRoom(1);
+    }
+    return { success: true };
   }
 
   // ── Room lifecycle ────────────────────────────────────────────────
@@ -180,8 +203,8 @@ class Game {
       }, CORRECT_RESOLVE_MS);
     } else {
       this._schedulePhase(() => {
-        if (hitZero) this._doEliminate(playerId, 'zero_points', () => this._openVote());
-        else this._openVote();
+        if (hitZero) this._doEliminate(playerId, 'zero_points', () => this._startRoom(this.currentRoom));
+        else this._startRoom(this.currentRoom);
       }, WRONG_RESOLVE_MS);
     }
 
@@ -266,7 +289,7 @@ class Game {
   _advanceRoom() {
     if (this.gameEnded) return;
     this.roomsCleared++;
-    if (this.currentRoom >= TOTAL_ROOMS) {
+    if (this.currentRoom >= this.totalRooms) {
       this._endGame('cleared');
     } else {
       this._startRoom(this.currentRoom + 1);
@@ -324,6 +347,7 @@ class Game {
     const active = this._activePlayers();
     return {
       phase: this.phase,
+      totalRooms: this.totalRooms,
       currentRoom: this.currentRoom,
       roomNumeral: this.currentRoom >= 1 ? ROMAN[this.currentRoom - 1] : '',
       roomsCleared: this.roomsCleared,
@@ -333,6 +357,7 @@ class Game {
         eliminatedRoom: ps.eliminatedRoom, eliminationCause: ps.eliminationCause,
       })),
       puzzle: this.puzzle ? bank.clientView(this.puzzle) : null,
+      readyPlayerIds: [...this.readyPlayers],
       votes: Object.fromEntries(this.votes),
       tally: this._computeTally(),
       majorityThreshold: Math.ceil((active.length + 1) / 2),
@@ -360,6 +385,7 @@ class Game {
   handleAction(playerId, action) {
     if (!action || typeof action !== 'object') return { success: false, error: 'Bad action' };
     switch (action.type) {
+      case 'player_ready':  return this.playerReady(playerId);
       case 'cast_vote':     return this.castVote(playerId, action.targetId);
       case 'answer_typing': return this.delivererTyping(playerId, action.text || '');
       case 'submit_answer': return this.submitAnswer(playerId, action.answer ?? action.text ?? '');
