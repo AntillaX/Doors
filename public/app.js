@@ -9,21 +9,24 @@ let roomCode = null;
 let myName = '';
 let isHost = false;
 let lastState = null;
-let prevPoints = {};          // track per-player point changes for animation
+let prevPoints = {};
 let typingThrottle = null;
-let currentRoomRendered = 0;  // which room we last triggered a reveal for
+let currentRoomRendered = 0;
 let flashRunning = false;
-let submitHandler = null;     // stored so we can remove it on re-delivery
+let submitHandler = null;
 let inputHandler = null;
 let keydownHandler = null;
+let doorTriggeredByAnswer = false;  // set by onCorrectAnswer so onNewRoom skips re-triggering
+let rulesCountdownTimer = null;
 
 const $ = id => document.getElementById(id);
 
 // ── Boot ──────────────────────────────────────────────────────
 function init() {
-  buildProgressMarks();
+  buildProgressMarks(10);
   attachLandingListeners();
   attachLobbyListeners();
+  attachRulesListeners();
   attachGameOverListeners();
 
   gtag('event', 'doors_lobby_visit');
@@ -99,6 +102,7 @@ function handleMessage(msg) {
         renderLobby(msg);
         showScreen('lobby');
       } else {
+        buildProgressMarks(msg.totalRooms || 10);
         showScreen('game');
         applyFullState(msg);
       }
@@ -118,10 +122,24 @@ function handleMessage(msg) {
       renderLobby(msg);
       break;
 
-    case 'room_started':
+    case 'game_starting':
       showScreen('game');
       applyFullState(msg);
+      buildProgressMarks(msg.totalRooms || 10);
+      showRulesModal(true, msg.countdown || 5);
       break;
+
+    case 'room_started': {
+      showScreen('game');
+      hideRulesModal();
+      // Clear any lingering resolve message immediately
+      const rm = $('resolve-msg');
+      rm.classList.remove('visible');
+      rm.hidden = true;
+      if (msg.currentRoom === 1) buildProgressMarks(msg.totalRooms || 10);
+      applyFullState(msg);
+      break;
+    }
 
     case 'vote_opened':
     case 'vote_cast':
@@ -133,11 +151,9 @@ function handleMessage(msg) {
       break;
 
     case 'answer_typing':
-      // Mirror deliverer's text without a full re-render
       if (msg.delivererId !== myId) {
         const live = $('live-answer');
         if (!live.hidden) live.textContent = msg.text || '';
-        // Mirror choice hover
         if (typeof msg.text === 'string' && msg.text.startsWith('[choice:')) {
           const idx = parseInt(msg.text.replace('[choice:', ''), 10);
           document.querySelectorAll('#choice-options .choice-btn').forEach((b, i) => {
@@ -304,20 +320,67 @@ function renderLobby(state) {
       }
     } else {
       li.classList.add('empty');
-      li.appendChild(document.createTextNode(`Seat ${i + 1}`));
+      if (i === 4) li.classList.add('optional-seat');
+      li.appendChild(document.createTextNode(i === 4 ? 'Optional seat' : `Seat ${i + 1}`));
     }
     list.appendChild(li);
   }
 
   const hint = $('lobby-hint');
-  const remaining = 5 - players.length;
-  hint.textContent = remaining > 0
-    ? `Waiting for ${remaining} more player${remaining !== 1 ? 's' : ''}…`
-    : 'All players ready.';
+  const needed = Math.max(0, 4 - players.length);
+  if (needed > 0) {
+    hint.textContent = `Waiting for ${needed} more player${needed !== 1 ? 's' : ''}…`;
+  } else if (players.length < 5) {
+    hint.textContent = '4 players ready — or wait for a 5th.';
+  } else {
+    hint.textContent = 'All 5 players ready.';
+  }
 
   const startBtn = $('start-btn');
-  startBtn.disabled = !(isHost && players.length === 5);
+  startBtn.disabled = !(isHost && players.length >= 4);
   startBtn.textContent = isHost ? 'Start Game' : 'Waiting for host…';
+}
+
+// ── Rules modal ───────────────────────────────────────────────
+function attachRulesListeners() {
+  $('lobby-rules-btn').addEventListener('click', () => showRulesModal(false));
+  $('game-rules-btn').addEventListener('click', () => showRulesModal(false));
+  $('rules-close-btn').addEventListener('click', hideRulesModal);
+  $('rules-overlay').addEventListener('click', e => {
+    if (e.target === $('rules-overlay')) hideRulesModal();
+  });
+}
+
+function showRulesModal(withCountdown, seconds) {
+  const overlay = $('rules-overlay');
+  const cd = $('rules-countdown');
+  const closeBtn = $('rules-close-btn');
+  overlay.hidden = false;
+
+  if (withCountdown && seconds > 0) {
+    cd.hidden = false;
+    closeBtn.hidden = true;
+    let remaining = seconds;
+    cd.textContent = `Starting in ${remaining}…`;
+    rulesCountdownTimer = setInterval(() => {
+      remaining--;
+      if (remaining > 0) {
+        cd.textContent = `Starting in ${remaining}…`;
+      } else {
+        hideRulesModal();
+      }
+    }, 1000);
+  } else {
+    cd.hidden = true;
+    closeBtn.hidden = false;
+  }
+}
+
+function hideRulesModal() {
+  if (rulesCountdownTimer) { clearInterval(rulesCountdownTimer); rulesCountdownTimer = null; }
+  $('rules-overlay').hidden = true;
+  $('rules-countdown').hidden = true;
+  $('rules-close-btn').hidden = false;
 }
 
 // ── Player bar ────────────────────────────────────────────────
@@ -325,7 +388,6 @@ function renderPlayerBar(state) {
   const bar = $('player-bar');
   const players = state.players || [];
 
-  // Update existing slots or rebuild
   const existing = bar.querySelectorAll('.player-slot');
   if (existing.length !== players.length) {
     bar.innerHTML = '';
@@ -383,12 +445,11 @@ function updatePlayerSlot(slot, p, state) {
 function renderPuzzleArea(state) {
   const { puzzle, phase, currentRoom, roomNumeral } = state;
 
-  if (currentRoom !== currentRoomRendered) {
+  if (currentRoom && currentRoom !== currentRoomRendered) {
     currentRoomRendered = currentRoom;
     onNewRoom(roomNumeral, puzzle);
   }
 
-  // In vote/deliver phases the question must remain visible
   if ((phase === 'room_vote' || phase === 'room_deliver' || phase === 'room_resolve') && puzzle) {
     $('question-text').textContent = puzzle.question || '';
     if (puzzle.stimulusType !== 'flash_sequence') {
@@ -398,7 +459,6 @@ function renderPuzzleArea(state) {
 }
 
 function onNewRoom(numeral, puzzle) {
-  // Reset puzzle content
   $('stimulus-text').textContent = '';
   $('question-text').textContent = '';
   $('flash-display').hidden = true;
@@ -411,10 +471,16 @@ function onNewRoom(numeral, puzzle) {
 
   showRoomNumeral(numeral);
 
+  // Trigger door open unless onCorrectAnswer already did it
+  if (doorTriggeredByAnswer) {
+    doorTriggeredByAnswer = false;
+  } else {
+    triggerDoorOpen();
+  }
+
   if (!puzzle) return;
 
   if (puzzle.stimulusType === 'flash_sequence' && puzzle.flashItems && puzzle.flashItems.length) {
-    // Flash sequence: start immediately; question appears when vote phase opens
     runFlashSequence(puzzle.flashItems, puzzle.flashItemDurationMs || 800);
   } else {
     $('stimulus-text').textContent = puzzle.stimulusText || '';
@@ -455,7 +521,7 @@ function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 // ── Vote area ─────────────────────────────────────────────────
 function renderVoteArea(state) {
-  const { phase, players, votes, tally } = state;
+  const { phase, players, votes, tally, majorityThreshold } = state;
   const voteArea = $('vote-area');
 
   if (phase !== 'room_vote') {
@@ -496,6 +562,11 @@ function renderVoteArea(state) {
 
     btn.addEventListener('click', () => sendAction({ type: 'cast_vote', targetId: p.id }));
     container.appendChild(btn);
+  }
+
+  const thresholdHint = $('vote-threshold-hint');
+  if (thresholdHint && majorityThreshold) {
+    thresholdHint.textContent = `${majorityThreshold} vote${majorityThreshold !== 1 ? 's' : ''} needed`;
   }
 }
 
@@ -545,7 +616,6 @@ function setupTextInput() {
   const wrap = $('text-input-wrap');
   wrap.hidden = false;
 
-  // Clear previous handlers
   if (inputHandler) input.removeEventListener('input', inputHandler);
   if (keydownHandler) input.removeEventListener('keydown', keydownHandler);
   if (submitHandler) btn.removeEventListener('click', submitHandler);
@@ -573,7 +643,6 @@ function renderChoiceOptions(puzzle, amDeliverer, delivererText, phase) {
   const wrap = $('choice-options');
   wrap.hidden = false;
 
-  // Rebuild only if puzzle changed
   if (wrap.dataset.puzzleId !== puzzle.id) {
     wrap.dataset.puzzleId = puzzle.id;
     wrap.innerHTML = '';
@@ -601,7 +670,6 @@ function renderChoiceOptions(puzzle, amDeliverer, delivererText, phase) {
       btn.onmouseenter = null;
       btn.onclick = null;
     });
-    // Highlight hovered option
     if (typeof delivererText === 'string' && delivererText.startsWith('[choice:')) {
       const hovIdx = parseInt(delivererText.replace('[choice:', ''), 10);
       allBtns.forEach((b, i) => b.classList.toggle('hovered', i === hovIdx));
@@ -619,32 +687,26 @@ function sendTyping(text) {
 function onCorrectAnswer(msg) {
   const wrap = $('puzzle-wrap');
   wrap.classList.add('gold-glow');
-
   showResolveMsg('Correct.', 'correct');
 
-  if (msg.currentRoom && msg.currentRoom <= 10) {
-    gtag('event', 'doors_room_cleared', { room: msg.currentRoom });
-  }
+  if (msg.currentRoom) gtag('event', 'doors_room_cleared', { room: msg.currentRoom });
 
   setTimeout(() => {
     wrap.classList.remove('gold-glow');
+    doorTriggeredByAnswer = true;
     triggerDoorOpen();
   }, 400);
 }
 
 function onWrongAnswer() {
-  showResolveMsg('Wrong answer — vote again.', 'wrong');
-  // Re-enable submit so a newly selected deliverer can type
-  $('submit-btn').disabled = false;
-  $('answer-input').value = '';
+  showResolveMsg('Wrong — a new puzzle is coming.', 'wrong');
+  // Reset so the incoming room_started (same room number) triggers onNewRoom
+  currentRoomRendered = 0;
 }
 
 function onPlayerEliminated(msg) {
   if (msg.playerId === myId) {
-    gtag('event', 'doors_player_eliminated', {
-      room: msg.currentRoom,
-      cause: msg.cause,
-    });
+    gtag('event', 'doors_player_eliminated', { room: msg.currentRoom, cause: msg.cause });
   }
   if (msg.distribution) {
     const distribPlayer = (msg.players || []).find(p => p.id === msg.playerId);
@@ -675,10 +737,10 @@ function triggerDoorOpen() {
 }
 
 // ── Progress indicator ────────────────────────────────────────
-function buildProgressMarks() {
+function buildProgressMarks(count) {
   const container = $('progress-indicator');
   container.innerHTML = '';
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 1; i <= (count || 10); i++) {
     const m = document.createElement('div');
     m.className = 'progress-mark';
     m.dataset.room = i;
@@ -717,7 +779,8 @@ const ROOM_AMBIENTS = [
   'rgba(68,56,58,0.042)',   // 7 warming
   'rgba(78,60,50,0.044)',   // 8
   'rgba(90,66,46,0.046)',   // 9
-  'rgba(102,74,42,0.050)',  // 10 warm amber
+  'rgba(102,74,42,0.050)',  // 10
+  'rgba(114,80,38,0.054)',  // 11 warm amber
 ];
 
 function setRoomAmbient(roomNum) {
@@ -758,7 +821,7 @@ function clearDisconnectNotices() {
 function showDistributionNotice(name, amount) {
   const el = document.createElement('div');
   el.className = 'disconnect-notice distribution';
-  el.textContent = `${name} disconnected — +${amount} to each remaining player`;
+  el.textContent = `${name} eliminated — +${amount} pts to each remaining player`;
   $('disconnect-notices').appendChild(el);
   setTimeout(() => el.remove(), 4000);
 }
@@ -774,6 +837,7 @@ function attachGameOverListeners() {
 
 function renderGameOver(state) {
   const { reason, roomsCleared, summary } = state;
+  const totalRooms = (lastState && lastState.totalRooms) || 10;
 
   const titleEl = $('over-title');
   if (reason === 'cleared') {
@@ -790,9 +854,9 @@ function renderGameOver(state) {
 
   const subtitleEl = $('over-subtitle');
   if (reason === 'table_failed') subtitleEl.textContent = 'Table failed — not enough players.';
-  else if (reason === 'timeout') subtitleEl.textContent = `Time expired. ${roomsCleared || 0} room${roomsCleared !== 1 ? 's' : ''} cleared.`;
-  else if (reason === 'cleared') subtitleEl.textContent = 'All ten rooms cleared.';
-  else subtitleEl.textContent = `${roomsCleared || 0} room${roomsCleared !== 1 ? 's' : ''} cleared.`;
+  else if (reason === 'timeout') subtitleEl.textContent = `Time expired. ${roomsCleared || 0} / ${totalRooms} rooms cleared.`;
+  else if (reason === 'cleared') subtitleEl.textContent = `All ${totalRooms} rooms cleared.`;
+  else subtitleEl.textContent = `${roomsCleared || 0} / ${totalRooms} rooms cleared.`;
 
   const summaryEl = $('over-summary');
   summaryEl.innerHTML = '';
@@ -836,6 +900,8 @@ function resetGameLocals() {
   prevPoints = {};
   currentRoomRendered = 0;
   flashRunning = false;
+  doorTriggeredByAnswer = false;
+  if (rulesCountdownTimer) { clearInterval(rulesCountdownTimer); rulesCountdownTimer = null; }
   clearDisconnectNotices();
   $('answer-input').value = '';
   $('submit-btn').disabled = false;

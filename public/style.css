@@ -212,6 +212,38 @@ body::after {
 
 .error-text { color: rgba(200, 130, 40, 0.85); font-size: 0.78rem; min-height: 1.2em; text-align: center; letter-spacing: 0.04em; }
 
+/* ── ? button ────────────────────────────────────────────────── */
+.btn-rules {
+  background: none;
+  border: 1px solid rgba(255, 250, 240, 0.14);
+  border-radius: 50%;
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  font: inherit;
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+.btn-rules:hover, .btn-rules:focus-visible {
+  color: var(--gold);
+  border-color: rgba(210, 172, 50, 0.4);
+  outline: none;
+}
+
+.lobby-rules-btn {
+  position: fixed;
+  top: max(0.75rem, env(safe-area-inset-top));
+  right: max(0.75rem, env(safe-area-inset-right));
+  z-index: 20;
+}
+
+.game-rules-btn {
+  position: absolute;
+  right: max(0.5rem, env(safe-area-inset-right));
+}
+
 /* ── Lobby ───────────────────────────────────────────────────── */
 #lobby-screen { align-items: center; justify-content: center; }
 
@@ -225,11 +257,13 @@ body::after {
   padding-top: 3rem;
 }
 
-.label-small {
-  font-size: 0.65rem;
-  letter-spacing: 0.15em;
-  color: var(--text-dim);
+.lobby-mode-hint {
+  font-size: 0.60rem;
+  letter-spacing: 0.13em;
+  color: var(--text-faint);
   text-transform: uppercase;
+  text-align: center;
+  margin-top: -0.5rem;
 }
 
 .room-code-btn {
@@ -268,6 +302,15 @@ body::after {
   color: var(--text-faint);
   font-style: italic;
   background: rgba(22, 17, 10, 0.30);
+}
+.lobby-player-item.optional-seat {
+  background: transparent;
+  border: 1px dashed rgba(255, 250, 240, 0.08);
+  font-size: 0.78rem;
+}
+.lobby-player-item.optional-seat .lobby-player-dot {
+  background: transparent;
+  border: 1px solid rgba(255, 250, 240, 0.18);
 }
 .lobby-player-dot {
   width: 6px; height: 6px;
@@ -515,10 +558,15 @@ body::after {
   gap: 1rem;
 }
 .vote-hint {
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   letter-spacing: 0.14em;
-  color: var(--text-faint);
+  color: var(--text-dim);
   text-transform: uppercase;
+}
+.vote-threshold-hint {
+  font-size: 0.62rem;
+  letter-spacing: 0.10em;
+  color: var(--text-faint);
 }
 .vote-buttons {
   display: flex;
@@ -849,4 +897,76 @@ body::after {
   .vote-buttons { gap: 1rem; }
   .vote-btn { padding: 1rem 1.25rem; }
   #puzzle-content { padding: 2.5rem; }
+}
+
+/* ── Rules modal ─────────────────────────────────────────────── */
+.rules-overlay {
+  position: fixed; inset: 0;
+  background: rgba(2, 2, 4, 0.88);
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.rules-card {
+  width: 100%;
+  max-width: 400px;
+  background: rgb(16, 12, 7);
+  border: 1px solid rgba(210, 172, 50, 0.22);
+  border-radius: 6px;
+  padding: 2rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.rules-heading {
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.28em;
+  color: var(--gold);
+  text-transform: uppercase;
+}
+
+.rules-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.rules-list li {
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--text-dim);
+  letter-spacing: 0.03em;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.rules-list li::before {
+  content: '—';
+  position: absolute;
+  left: 0;
+  color: var(--text-faint);
+}
+
+.rules-list li strong {
+  color: var(--text);
+}
+
+.rules-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.rules-countdown {
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  color: var(--text-faint);
+  text-align: center;
 }

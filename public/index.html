@@ -44,9 +44,10 @@
   <!-- ── Lobby ───────────────────────────────────────────────── -->
   <section id="lobby-screen" class="screen">
     <button id="lobby-leave-btn" class="btn-home">&larr; Leave</button>
+    <button id="lobby-rules-btn" class="btn-rules lobby-rules-btn" aria-label="How to play">?</button>
     <div class="lobby-inner">
-      <p class="label-small">Room code &middot; tap to copy</p>
       <button id="room-code-display" class="room-code-btn" type="button" aria-label="Copy room code"></button>
+      <p class="lobby-mode-hint">4 – 5 players &middot; 5th seat optional</p>
       <ul id="lobby-players" class="lobby-players" aria-label="Players in lobby"></ul>
       <p id="lobby-hint" class="muted-text">Waiting for players&hellip;</p>
       <button id="start-btn" class="btn btn-primary" disabled>Start Game</button>
@@ -56,40 +57,33 @@
   <!-- ── Game ────────────────────────────────────────────────── -->
   <section id="game-screen" class="screen">
 
-    <!-- Top: 5-player bar -->
     <div id="player-bar" role="list" aria-label="Players"></div>
 
-    <!-- Room numeral (appears briefly when entering each room) -->
     <div id="room-numeral" class="room-numeral" aria-hidden="true"></div>
 
-    <!-- Main content area -->
     <div id="game-area">
 
-      <!-- Puzzle wrap — this is what "opens" like doors on room clear -->
       <div id="puzzle-wrap">
         <div class="door-half door-left" aria-hidden="true"></div>
         <div class="door-half door-right" aria-hidden="true"></div>
         <div id="puzzle-content">
-          <!-- Flash sequence words/numbers appear here -->
           <div id="flash-display" class="flash-display" aria-live="assertive"></div>
-          <!-- Static stimulus text -->
           <p id="stimulus-text" class="stimulus-text"></p>
-          <!-- Question -->
           <p id="question-text" class="question-text"></p>
         </div>
       </div>
 
       <!-- Vote area (room_vote phase) -->
       <div id="vote-area" class="vote-area" hidden aria-label="Vote for deliverer">
-        <p class="vote-hint">Vote who delivers the answer</p>
+        <p class="vote-hint">Who delivers the answer?</p>
         <div id="vote-buttons" class="vote-buttons"></div>
+        <p id="vote-threshold-hint" class="vote-threshold-hint"></p>
       </div>
 
-      <!-- Deliver area (room_deliver phase) -->
+      <!-- Deliver area (room_deliver / room_resolve phases) -->
       <div id="deliver-area" class="deliver-area" hidden>
         <p id="deliverer-label" class="deliverer-label"></p>
 
-        <!-- Text / numeric answer input (deliverer sees this) -->
         <div id="text-input-wrap" class="text-input-wrap" hidden>
           <input type="text" id="answer-input" class="answer-input"
                  autocomplete="off" spellcheck="false" maxlength="100"
@@ -97,27 +91,21 @@
           <button type="button" id="submit-btn" class="btn btn-primary">Submit</button>
         </div>
 
-        <!-- Live answer mirror (non-deliverers see this) -->
         <p id="live-answer" class="live-answer" hidden aria-live="polite"></p>
 
-        <!-- Choice options (deliverer sees this for MCQ) -->
         <div id="choice-options" class="choice-options" hidden></div>
       </div>
 
-      <!-- Transient resolve feedback (correct/wrong flash) -->
       <div id="resolve-msg" class="resolve-msg" hidden aria-live="polite"></div>
 
-      <!-- Disconnect countdown notices -->
       <div id="disconnect-notices" class="disconnect-notices" aria-live="polite"></div>
 
     </div><!-- /#game-area -->
 
-    <!-- Bottom: progress + timer -->
     <div id="bottom-bar">
-      <div id="progress-indicator" aria-label="Room progress">
-        <!-- 10 marks built by JS -->
-      </div>
+      <div id="progress-indicator" aria-label="Room progress"></div>
       <div id="game-timer" class="game-timer" aria-label="Time remaining">30:00</div>
+      <button id="game-rules-btn" class="btn-rules game-rules-btn" aria-label="How to play">?</button>
     </div>
 
   </section><!-- /#game-screen -->
@@ -132,6 +120,25 @@
       <a href="/" class="btn btn-ghost over-hub-link">&larr; Hub</a>
     </div>
   </section>
+
+  <!-- ── Rules modal ────────────────────────────────────────────── -->
+  <div id="rules-overlay" class="rules-overlay" hidden>
+    <div class="rules-card" role="dialog" aria-modal="true" aria-labelledby="rules-heading">
+      <h2 id="rules-heading" class="rules-heading">How to Play</h2>
+      <ul class="rules-list">
+        <li>A puzzle is shown to all players. Discuss together — then <strong>vote</strong> for who delivers the answer.</li>
+        <li><strong>Correct:</strong> deliverer loses 3 points. Advance to the next room.</li>
+        <li><strong>Wrong:</strong> deliverer loses 5 points. A new puzzle is drawn and the vote reopens.</li>
+        <li>Reach 0 points and you're <strong>eliminated</strong>. You stay as a spectator.</li>
+        <li>Table fails if fewer than 3 players remain. 30-minute time limit.</li>
+        <li><strong>4 players:</strong> clear 10 rooms to win. &nbsp;<strong>5 players:</strong> clear 11 rooms.</li>
+      </ul>
+      <div class="rules-footer">
+        <p id="rules-countdown" class="rules-countdown" hidden></p>
+        <button id="rules-close-btn" class="btn btn-primary">Got it</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Toast -->
   <div id="toast" class="toast" hidden aria-live="assertive"></div>
