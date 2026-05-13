@@ -1,0 +1,1049 @@
+{
+  "version": "2.0",
+  "schema_notes": {
+    "id": "unique snake_case identifier",
+    "level": "1=Snap (15s solo), 2=Discussion (table cracks in voice), 3=Trap (intuition trap), 4=Brutal",
+    "category": "recall|pattern|logic|lateral|language|math|algebra|spatial|probability|estimation|categorization|sequencing|process",
+    "format": "mcq|free_form",
+    "options": "for static MCQ — FIRST option is always correct; client shuffles before display",
+    "options_expression": "for parameterized MCQ — expressions evaluated with rolled params; FIRST is always correct",
+    "variants": "alternative to params for hand-written variations; server picks one at random",
+    "answer_expression": "for parameterized free-form — expression evaluated with rolled params",
+    "is_room_one_default": "if true, this puzzle is the Room 1 default (must be level=1, category=recall, format=mcq)"
+  },
+  "_pools": {
+    "word_pool": [
+      "ANCHOR","MIRROR","BRIDGE","STILL","COPPER","WIND","HONEST","RIVER","STONE","AMBER",
+      "QUIET","WHITE","CANDLE","OCEAN","CLOUD","FIRE","RAIN","SAND","GRASS","FOREST",
+      "SHADOW","GOLDEN","SILVER","ROOT","BRANCH","FROST","EMBER","HOLLOW","MARSH","DESERT",
+      "VALLEY","RIDGE","STORM","BREEZE","DAWN","DUSK","VELVET","STEEL","GLASS","LEATHER",
+      "HARBOR","MEADOW","WINTER","SPRING","AUTUMN","BEACON","LANTERN","COMPASS","TUNDRA","MARROW"
+    ],
+    "color_pool": ["RED","BLUE","GREEN","YELLOW","PURPLE","ORANGE","BLACK","WHITE","GRAY","BROWN","PINK","TEAL"]
+  },
+
+  "puzzles": [
+
+    {
+      "id": "word_recall_position",
+      "level": 1, "category": "recall", "format": "mcq", "parameterized": true,
+      "is_room_one_default": true,
+      "params": { "ask_position": { "type": "int", "min": 1, "max": 5 } },
+      "stimulus": { "type": "flash_sequence", "source": "draw_5_from_word_pool", "duration_profile": "short_word_per_item" },
+      "question": "What was the {ask_position_ordinal} word?",
+      "options_strategy": "[sequence[ask_position-1], sequence[other_position], pool_unshown_1, pool_unshown_2]"
+    },
+
+    {
+      "id": "number_recall_position",
+      "level": 1, "category": "recall", "format": "mcq", "parameterized": true,
+      "params": { "ask_position": { "type": "int", "min": 1, "max": 5 } },
+      "stimulus": { "type": "flash_sequence", "source": "5_random_ints_10_99", "duration_profile": "multi_digit_per_item" },
+      "question": "What was the {ask_position_ordinal} number?",
+      "options_strategy": "[sequence[ask_position-1], sequence[other_position], random_int_not_shown, random_int_not_shown]"
+    },
+
+    {
+      "id": "color_recall_position",
+      "level": 1, "category": "recall", "format": "mcq", "parameterized": true,
+      "params": { "ask_position": { "type": "int", "min": 1, "max": 5 } },
+      "stimulus": { "type": "flash_sequence", "source": "draw_5_from_color_pool", "duration_profile": "short_word_per_item" },
+      "question": "What was the {ask_position_ordinal} color?",
+      "options_strategy": "[sequence[ask_position-1], sequence[other_position], color_unshown, color_unshown]"
+    },
+
+    {
+      "id": "word_recall_count_starting_letter",
+      "level": 2, "category": "recall", "format": "mcq", "parameterized": true,
+      "params": { "count": { "type": "fixed", "value": 6 } },
+      "stimulus": { "type": "flash_sequence", "source": "draw_6_from_word_pool_with_2or3_sharing_initial", "duration_profile": "short_word_per_item" },
+      "question": "How many of the {count} words started with the letter {target_letter}?",
+      "options_strategy": "[correct_count, correct_count+1, correct_count-1, correct_count+2_or_minus_2]",
+      "note": "Server chooses a target_letter that 2 or 3 of the drawn words begin with."
+    },
+
+    {
+      "id": "number_recall_sum_positions",
+      "level": 2, "category": "recall", "format": "mcq", "parameterized": true,
+      "params": {
+        "pos_a": { "type": "int", "min": 1, "max": 5 },
+        "pos_b": { "type": "int", "min": 1, "max": 5 }
+      },
+      "constraints": ["pos_a != pos_b", "pos_a < pos_b"],
+      "stimulus": { "type": "flash_sequence", "source": "5_random_ints_3_19", "duration_profile": "multi_digit_per_item" },
+      "question": "What is the sum of the {pos_a_ordinal} and {pos_b_ordinal} numbers?",
+      "options_expression": ["sequence[pos_a-1] + sequence[pos_b-1]", "sequence[pos_a-1] + sequence[pos_b-1] + 2", "sequence[pos_a-1] + sequence[pos_b-1] - 3", "sequence[pos_a-1] * 2"]
+    },
+
+    {
+      "id": "grid_letter_count",
+      "level": 2, "category": "recall", "format": "mcq", "parameterized": true,
+      "params": { "grid_size": { "type": "fixed", "value": 4 } },
+      "stimulus": { "type": "grid", "source": "random_4x4_letters_pool_AEIOULNRST", "duration_profile": "grid_4x4" },
+      "question": "How many times did the letter {target_letter} appear?",
+      "options_strategy": "[correct_count, correct_count+1, correct_count-1, correct_count+2]",
+      "note": "Server picks target_letter that appears 2-5 times in the grid."
+    },
+
+    {
+      "id": "word_recall_immediate_after",
+      "level": 3, "category": "recall", "format": "mcq", "parameterized": true,
+      "params": { "anchor_position": { "type": "int", "min": 1, "max": 4 } },
+      "stimulus": { "type": "flash_sequence", "source": "draw_5_from_word_pool", "duration_profile": "short_word_per_item" },
+      "question": "Which word came IMMEDIATELY AFTER {sequence[anchor_position-1]}?",
+      "options_strategy": "[sequence[anchor_position], sequence[anchor_position-1] (the anchor itself, common error), sequence[anchor_position+1] if exists else pool_unshown, pool_unshown]"
+    },
+
+    {
+      "id": "arithmetic_sequence_basic",
+      "level": 1, "category": "pattern", "format": "mcq", "parameterized": true,
+      "params": {
+        "start": { "type": "int", "min": 2, "max": 8 },
+        "step": { "type": "int", "min": 2, "max": 5 }
+      },
+      "stimulus": { "type": "static_text", "text": "{start}, {start+step}, {start+2*step}, {start+3*step}, ?" },
+      "question": "What number comes next?",
+      "options_expression": ["start + 4*step", "start + 5*step", "start + 4*step - 1", "start + 3*step"]
+    },
+
+    {
+      "id": "doubling_sequence",
+      "level": 1, "category": "pattern", "format": "mcq", "parameterized": true,
+      "params": { "start": { "type": "int", "min": 1, "max": 5 } },
+      "stimulus": { "type": "static_text", "text": "{start}, {start*2}, {start*4}, {start*8}, ?" },
+      "question": "What number comes next?",
+      "options_expression": ["start * 16", "start * 10", "start * 12", "start * 8 + start"]
+    },
+
+    {
+      "id": "alternating_two_sequences",
+      "level": 1, "category": "pattern", "format": "free_form", "parameterized": true,
+      "params": {
+        "a": { "type": "int", "min": 2, "max": 10 },
+        "b": { "type": "int", "min": 2, "max": 8 }
+      },
+      "constraints": ["a != b"],
+      "stimulus": { "type": "static_text", "text": "{a}, {b}, {a+1}, {b+1}, {a+2}, {b+2}, {a+3}, ?" },
+      "question": "What number comes next?",
+      "answer_expression": "b + 3"
+    },
+
+    {
+      "id": "triangular_differences",
+      "level": 2, "category": "pattern", "format": "mcq", "parameterized": true,
+      "params": { "start": { "type": "int", "min": 1, "max": 3 } },
+      "stimulus": { "type": "static_text", "text": "{start}, {start+1}, {start+3}, {start+6}, {start+10}, ?" },
+      "question": "What number comes next? (differences: +1, +2, +3, +4, ...)",
+      "options_expression": ["start + 15", "start + 14", "start + 16", "start + 13"]
+    },
+
+    {
+      "id": "multiply_add_pattern",
+      "level": 2, "category": "pattern", "format": "free_form", "parameterized": true,
+      "params": {
+        "start": { "type": "int", "min": 1, "max": 4 },
+        "mult": { "type": "int", "min": 2, "max": 3 },
+        "add": { "type": "int", "min": 1, "max": 3 }
+      },
+      "stimulus": { "type": "static_text", "text": "Pattern: multiply by {mult}, then add {add}.\n\n{start}, {start*mult+add}, {(start*mult+add)*mult+add}, ?" },
+      "question": "What number comes next?",
+      "answer_expression": "((start*mult+add)*mult+add)*mult+add"
+    },
+
+    {
+      "id": "letter_skip_pattern",
+      "level": 2, "category": "pattern", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "A, C, F, J, O, ?", "options": ["U", "T", "V", "S"] },
+        { "stimulus": "Z, X, V, T, R, ?", "options": ["P", "Q", "O", "N"] },
+        { "stimulus": "B, D, G, K, P, ?", "options": ["V", "U", "W", "T"] },
+        { "stimulus": "A, B, D, G, K, ?", "options": ["P", "O", "Q", "N"] }
+      ]
+    },
+
+    {
+      "id": "fibonacci_sequence",
+      "level": 2, "category": "pattern", "format": "mcq", "parameterized": true,
+      "params": {
+        "a": { "type": "int", "min": 1, "max": 4 },
+        "b": { "type": "int", "min": 1, "max": 4 }
+      },
+      "stimulus": { "type": "static_text", "text": "Each number is the sum of the two before it.\n\n{a}, {b}, {a+b}, {a+2*b}, {2*a+3*b}, ?" },
+      "question": "What number comes next?",
+      "options_expression": ["3*a + 5*b", "3*a + 4*b", "2*a + 4*b", "3*a + 6*b"]
+    },
+
+    {
+      "id": "alpha_numeric_pair_pattern",
+      "level": 2, "category": "pattern", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "A1, B3, C5, D7, ?", "options": ["E9", "E8", "F9", "E10"] },
+        { "stimulus": "B2, D4, F6, H8, ?", "options": ["J10", "I10", "J9", "K11"] },
+        { "stimulus": "A2, C4, E8, G16, ?", "options": ["I32", "I24", "H32", "I28"] }
+      ]
+    },
+
+    {
+      "id": "simpsons_paradox",
+      "level": 4, "category": "probability", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Two hospitals: A and B.\n\nHospital A: 90% survival on EASY cases (900/1000), 30% on HARD cases (60/200).\nHospital B: 95% on EASY (190/200), 50% on HARD (500/1000).\n\nOverall — A: 960/1200 = 80%. B: 690/1200 = 57.5%." },
+      "question": "If you need treatment (and you don't yet know if your case is easy or hard), which hospital is the better choice?",
+      "options": [
+        "Hospital B — it's better at BOTH case types",
+        "Hospital A — it has the higher overall survival rate",
+        "Either — they're statistically equivalent",
+        "Cannot be determined from these numbers"
+      ],
+      "note": "Simpson's paradox. B is better in every subcategory but A's overall rate looks better only because A sees more easy cases."
+    },
+
+    {
+      "id": "fibonacci_trap",
+      "level": 3, "category": "pattern", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "1, 2, 4, 7, 11, 16, ?" },
+      "question": "What number comes next?",
+      "options": ["22", "27", "23", "21"],
+      "note": "Pattern is +1,+2,+3,+4,+5,+6 (correct=22). Trap is 27 (=11+16, Fibonacci-style addition)."
+    },
+
+    {
+      "id": "look_and_say",
+      "level": 4, "category": "pattern", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "1, 11, 21, 1211, 111221, ?\n\n(Hint: read each line aloud to describe the previous one)" },
+      "question": "What comes next?",
+      "options": ["312211", "211221", "13112221", "12111221"]
+    },
+
+    {
+      "id": "tribonacci",
+      "level": 4, "category": "pattern", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Each term is the sum of the three preceding terms.\n\n0, 1, 1, 2, 4, 7, 13, 24, ?" },
+      "question": "What comes next?",
+      "options": ["44", "42", "48", "37"]
+    },
+
+    {
+      "id": "simple_comparison",
+      "level": 1, "category": "logic", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "A weighs more than B. C weighs less than B. D weighs more than A.", "question": "Who weighs the most?", "options": ["D", "A", "B", "C"] },
+        { "stimulus": "Red is bigger than blue. Green is bigger than red. Yellow is smaller than blue.", "question": "Which is the smallest?", "options": ["Yellow", "Blue", "Red", "Green"] },
+        { "stimulus": "Tom runs faster than Sara. Mike runs slower than Sara. Lucy runs faster than Tom.", "question": "Who runs the slowest?", "options": ["Mike", "Sara", "Tom", "Lucy"] }
+      ]
+    },
+
+    {
+      "id": "who_lied_about_cake",
+      "level": 1, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Three people make claims:\nAnna: 'I did not eat the cake.'\nBen: 'Anna ate the cake.'\nCarlos: 'Ben ate the cake.'\n\nExactly one person is lying. Exactly one person ate the cake." },
+      "question": "Who ate the cake?",
+      "options": ["Ben", "Anna", "Carlos", "Cannot be determined"],
+      "note": "If Ben ate: Anna truthful (didn't eat), Ben lied (claim that Anna ate is false), Carlos truthful (Ben ate). Exactly one liar. ✓"
+    },
+
+    {
+      "id": "who_oldest_chain",
+      "level": 1, "category": "logic", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Tom is older than Sara. Sara is older than Mike. Mike is older than Lucy.", "question": "Who is the oldest?", "options": ["Tom", "Sara", "Mike", "Lucy"] },
+        { "stimulus": "P is younger than Q. R is older than Q. S is younger than P.", "question": "Who is the oldest?", "options": ["R", "Q", "P", "S"] },
+        { "stimulus": "X is older than Y. Z is younger than W. Y is older than W.", "question": "Who is the youngest?", "options": ["Z", "W", "Y", "X"] }
+      ]
+    },
+
+    {
+      "id": "three_mislabeled_boxes",
+      "level": 2, "category": "logic", "format": "free_form", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Three boxes labeled APPLES, ORANGES, and MIXED. All three labels are wrong. You draw one fruit from the box labeled MIXED — it is an apple." },
+      "question": "What does the box labeled ORANGES actually contain? (one word)",
+      "answer": "MIXED",
+      "accepted_answers": ["MIXED","MIX","BOTH"],
+      "case_insensitive": true
+    },
+
+    {
+      "id": "three_people_one_truther",
+      "level": 2, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Three people. Exactly ONE always tells the truth; the other TWO always lie.\n\nAlex: 'Beth always lies.'\nBeth: 'Carl always lies.'\nCarl: 'Both Alex and Beth always lie.'" },
+      "question": "Who is the truth-teller?",
+      "options": ["Beth", "Alex", "Carl", "Cannot be determined"],
+      "note": "If Beth truths: Carl lies (per Beth), so Alex lies. Alex's 'Beth lies' is false (good, Alex liar). Carl's 'both A and B lie' is false (Beth doesn't lie). Carl liar, his claim false. ✓ Consistent."
+    },
+
+    {
+      "id": "round_table_four",
+      "level": 2, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Four people sit at a square table, one per side. Seats labeled N, E, S, W.\n• Anna is directly across from Ben (not adjacent).\n• Carlos is to Anna's immediate left (from Anna's point of view).\n• Dana is to Anna's immediate right.\n\nAnna sits at the N seat." },
+      "question": "Who sits at the W seat?",
+      "options": ["Carlos", "Dana", "Ben", "Anna"],
+      "note": "Anna=N. Ben across = S. From Anna's view facing inward (toward center, i.e. South-facing), her left is W. So Carlos=W, Dana=E."
+    },
+
+    {
+      "id": "five_houses_simplified",
+      "level": 2, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Five houses in a row, positions 1-5 (left to right).\n• The blue house is at position 1.\n• Red is somewhere between blue and yellow (in the order blue ... red ... yellow, not necessarily adjacent).\n• Green is immediately to the left of white.\n• Green is not next to blue." },
+      "question": "What color is the house at position 3?",
+      "options": ["Yellow", "Red", "Green", "White"],
+      "note": "Blue=1. Red in middle of blue→yellow trio. Green not at 2 (not next to blue). Green-white adjacent with green left. Try red=2, yellow=3: green at 4, white at 5. Position 3=yellow."
+    },
+
+    {
+      "id": "wason_card_task",
+      "level": 2, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Four cards on a table. Each card has a letter on one side and a number on the other. The visible sides show:\n\n    A    4    K    7\n\nRule: every vowel must have an even number on the other side." },
+      "question": "Which two cards MUST you flip to verify the rule?",
+      "options": ["A and 7", "A and 4", "A, 4, and 7", "4 and 7"]
+    },
+
+    {
+      "id": "river_crossing_choice",
+      "level": 2, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A farmer has a wolf, a goat, and a cabbage. He must cross a river. The boat holds only him plus one other item.\n• Wolf eats goat if left alone together.\n• Goat eats cabbage if left alone together." },
+      "question": "What is the FIRST item the farmer should take across?",
+      "options": ["The goat", "The wolf", "The cabbage", "Either the wolf or the cabbage"]
+    },
+
+    {
+      "id": "two_people_truth_liar",
+      "level": 3, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Two people, A and B. Each ALWAYS tells the truth or ALWAYS lies (independently — could be both, neither, or one of each).\n\nA: 'B always tells the truth.'\nB: 'A and I are different types.'" },
+      "question": "What are A and B?",
+      "options": ["Both always lie", "Both always tell truth", "A truth, B lies", "A lies, B truth"],
+      "note": "If A truth: B truth (per A), B's claim 'we are different' true, but A=B=truth (same). Contradiction. So A lies. B doesn't always tell truth (A's claim is false), so B lies. B's claim 'we are different' is false, meaning same type. Both liars ✓."
+    },
+
+    {
+      "id": "weighing_8_coins",
+      "level": 3, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "You have 8 identical-looking coins. Seven weigh the same; one is HEAVIER. You have a balance scale (compares two groups; tells you which side is heavier, or that they balance)." },
+      "question": "What is the MINIMUM number of weighings needed to guarantee finding the heavier coin?",
+      "options": ["2", "3", "4", "1"],
+      "note": "Split into 3+3+2. Weighing 1: 3 vs 3. If balanced, heavy is in the 2 — weigh those 2 (weighing 2). If unbalanced, heavy is in the heavier 3 — weigh 1 vs 1 from those 3 (weighing 2). Always 2."
+    },
+
+    {
+      "id": "constraint_four_seating",
+      "level": 3, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Four colleagues sit in a row of four chairs (positions 1-4).\n• Mia is to the right of Jay (not necessarily adjacent).\n• Kai is between Mia and Lin (in some order — Mia on one side, Lin on the other, Kai in the middle of those two).\n• Lin is not in position 1." },
+      "question": "Who sits in position 1?",
+      "options": ["Jay", "Mia", "Kai", "Lin"],
+      "note": "Lin ≠ 1. Kai must be between Mia and Lin → Kai isn't on an extreme of that trio. Mia > Jay. Jay must be position 1 since all others have rightward/middle constraints."
+    },
+
+    {
+      "id": "einstein_simplified",
+      "level": 3, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Three friends each own one pet. Each lives in a differently-colored house.\n• The dog owner lives in the red house.\n• The cat owner lives next to the blue house.\n• Maria does not live in the green house.\n• Maria owns a fish.\n• Houses are in a row: positions 1, 2, 3." },
+      "question": "Which color house does Maria live in?",
+      "options": ["Blue", "Red", "Green", "Cannot be determined"],
+      "note": "Maria has fish, so not dog (red) or cat. Maria not in green. So Maria in blue. Other two are red and green; one has dog (red), other cat (next to blue means adjacent to Maria)."
+    },
+
+    {
+      "id": "knights_knaves_three",
+      "level": 4, "category": "logic", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Three people: P, Q, R. Each ALWAYS tells the truth or ALWAYS lies (independently).\n\nP: 'Q is a liar.'\nQ: 'R is a truth-teller.'\nR: 'P and Q are different types.'" },
+      "question": "What are P, Q, R?",
+      "options": ["P liar, Q truther, R truther", "P truther, Q liar, R liar", "P truther, Q liar, R truther", "All three liars"],
+      "note": "Unique solution: P liar, Q truther, R truther. P liar says Q liar (false ✓). Q truther says R truther (true ✓). R truther says P,Q different (true ✓)."
+    },
+
+    {
+      "id": "lateral_word_play",
+      "level": 1, "category": "lateral", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Which word in English has three consecutive double letters?", "options": ["Bookkeeper", "Mississippi", "Committee", "Tennessee"] },
+        { "stimulus": "What word is spelled wrong in every dictionary?", "options": ["Wrong", "Misspelled", "Incorrect", "Dictionary"] },
+        { "stimulus": "What 5-letter word becomes SHORTER when you add 2 letters to it?", "options": ["SHORT (add 'er')", "QUEUE (add 'd')", "BREAD (add 'th')", "PIANO (add 'ed')"] }
+      ]
+    },
+
+    {
+      "id": "lateral_simple_riddle",
+      "level": 1, "category": "lateral", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "What gets wet while drying?", "options": ["A towel", "A washing machine", "Hair", "Skin"] },
+        { "stimulus": "What has hands but cannot clap?", "options": ["A clock", "A statue", "A glove", "A doll"] },
+        { "stimulus": "The more you take, the more you leave behind. What are they?", "options": ["Footsteps", "Memories", "Years", "Photographs"] }
+      ]
+    },
+
+    {
+      "id": "elevator_short_man",
+      "level": 2, "category": "lateral", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A man lives on the 20th floor. Every morning he takes the elevator to the ground floor for work. When he comes home, he takes the elevator only to the 10th floor and walks up the remaining 10 flights — except on rainy days, when he takes the elevator all the way to the 20th floor." },
+      "question": "Why does he do this?",
+      "options": [
+        "He is short and can only reach the button for floor 10; on rainy days he has an umbrella to extend his reach",
+        "He likes the exercise but skips it when wet shoes are dangerous",
+        "The elevator is broken above floor 10 except during rain when maintenance reactivates it",
+        "He visits a neighbor on floor 10 each evening"
+      ]
+    },
+
+    {
+      "id": "water_glass_bartender",
+      "level": 2, "category": "lateral", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A woman walks into a bar and asks the bartender for a glass of water. The bartender pulls out a gun and points it at her. She says 'thank you' and leaves, satisfied." },
+      "question": "What just happened?",
+      "options": [
+        "She had the hiccups; the scare cured them",
+        "She was robbing the bar and gave up",
+        "The bartender recognized her and was warning her",
+        "She was paying off a bet"
+      ]
+    },
+
+    {
+      "id": "two_fathers_two_sons",
+      "level": 2, "category": "lateral", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Two fathers and two sons sit down to eat eggs for breakfast. They eat exactly three eggs, and each person had one whole egg." },
+      "question": "How is this possible?",
+      "options": [
+        "They are grandfather, father, and son — only three people, but the father is both a son and a father",
+        "Someone ate two eggs",
+        "The eggs were oversized so they split one",
+        "Two of them are twins counted twice"
+      ]
+    },
+
+    {
+      "id": "surgeon_son",
+      "level": 2, "category": "lateral", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A father and son are in a car accident. The father is killed instantly. The son is rushed to the hospital. The surgeon looks at the boy and says: 'I cannot operate on him — he is my son.'" },
+      "question": "How is this possible?",
+      "options": [
+        "The surgeon is the boy's mother",
+        "The boy was adopted and has two fathers",
+        "The surgeon was confused",
+        "The 'father' in the accident was actually a stepfather"
+      ]
+    },
+
+    {
+      "id": "locked_room_ice",
+      "level": 3, "category": "lateral", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A man is found dead in a locked room. The room contains nothing but a puddle of water and a long rope hanging from the ceiling. The cause of death is hanging." },
+      "question": "How did he die?",
+      "options": [
+        "He stood on a block of ice that melted",
+        "He was murdered and the rope was placed afterward",
+        "The water dripped from the ceiling onto him",
+        "He climbed the rope and slipped"
+      ]
+    },
+
+    {
+      "id": "born_in_year_age",
+      "level": 3, "category": "lateral", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A boy was born in 2010. He turned 15 in 2020." },
+      "question": "How is this possible?",
+      "options": [
+        "2010 and 2020 are hospital room numbers, not years",
+        "He was born on Feb 29 of a leap year",
+        "He aged unusually fast due to a medical condition",
+        "Time travel"
+      ]
+    },
+
+    {
+      "id": "anagram_simple",
+      "level": 1, "category": "language", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Rearrange the letters of LISTEN to form another common English word.", "options": ["SILENT", "LINTES", "STILEN", "LISTEM"] },
+        { "stimulus": "Rearrange the letters of NIGHT to form another common word.", "options": ["THING", "TINGH", "NITHG", "HINGT"] },
+        { "stimulus": "Rearrange the letters of EARTH to form another word meaning 'core' or 'inner emotion'.", "options": ["HEART", "RAETH", "TARHE", "HEAVE"] }
+      ]
+    },
+
+    {
+      "id": "rhyme_match",
+      "level": 1, "category": "language", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Which word rhymes with ORANGE?", "options": ["None of these — orange has no perfect rhyme", "Door hinge", "Strange", "Sponge"] },
+        { "stimulus": "Which word rhymes with PURPLE?", "options": ["None of these — purple has no perfect rhyme", "Circle", "Bubble", "Maple"] }
+      ]
+    },
+
+    {
+      "id": "odd_one_out_animals",
+      "level": 1, "category": "language", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "DOG, CAT, SPARROW, HORSE, COW", "question": "Which does not belong?", "options": ["SPARROW", "DOG", "CAT", "COW"], "note": "Only bird" },
+        { "stimulus": "SHARK, DOLPHIN, TUNA, SALMON, COD", "question": "Which does not belong?", "options": ["DOLPHIN", "SHARK", "TUNA", "COD"], "note": "Only mammal" },
+        { "stimulus": "EAGLE, OWL, BAT, HAWK, FALCON", "question": "Which does not belong?", "options": ["BAT", "EAGLE", "OWL", "HAWK"], "note": "Only mammal among birds" },
+        { "stimulus": "ROSE, TULIP, OAK, DAISY, LILY", "question": "Which does not belong?", "options": ["OAK", "ROSE", "TULIP", "DAISY"], "note": "Only tree" }
+      ]
+    },
+
+    {
+      "id": "anagram_medium",
+      "level": 2, "category": "language", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Rearrange MASTER into a word meaning 'flow of water'.", "options": ["STREAM", "MASTER", "STAMER", "TERMAS"] },
+        { "stimulus": "Rearrange TEACHER into a 7-letter word meaning 'a deceiver'.", "options": ["CHEATER", "TEACHER", "RETACHE", "CATHERE"] },
+        { "stimulus": "Rearrange ANGRIEST into a word meaning 'foreign-born'.", "options": ["STRANGER", "GRANTIES", "RANTIGES", "ASTRINGE"], "note": "STRANGER is anagram of ANGRIEST" }
+      ]
+    },
+
+    {
+      "id": "word_analogy",
+      "level": 2, "category": "language", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "BIRD is to FLOCK as FISH is to ___", "options": ["SCHOOL", "BUNCH", "GROUP", "POD"] },
+        { "stimulus": "FINGER is to HAND as LEAF is to ___", "options": ["BRANCH", "TREE", "ROOT", "STEM"] },
+        { "stimulus": "PETAL is to FLOWER as PAGE is to ___", "options": ["BOOK", "WORD", "LIBRARY", "PARAGRAPH"] }
+      ]
+    },
+
+    {
+      "id": "scrambled_phrase",
+      "level": 2, "category": "language", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Unscramble this common phrase (word boundaries correct; letters within each word scrambled):\n\n'IETM IS YENMO'", "options": ["TIME IS MONEY", "MITE IS MONEY", "ITEM IS ENEMY", "TIME IS ENEMY"] },
+        { "stimulus": "Unscramble (word boundaries kept):\n\n'TBEERT TALE NAHT VEREN'", "options": ["BETTER LATE THAN NEVER", "BITTER ALE THAN VERNE", "BETTER LATE THAN VENNE", "BUTTER LATE THAN NEVER"] }
+      ]
+    },
+
+    {
+      "id": "palindrome_recognition",
+      "level": 2, "category": "language", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Which word is a PALINDROME (reads the same forwards and backwards)?", "options": ["LEVEL", "EQUAL", "GREAT", "SHELF"] },
+        { "stimulus": "Which word is a PALINDROME?", "options": ["RACECAR", "FIRETRUCK", "MOTORCYCLE", "SCOOTER"] },
+        { "stimulus": "Which sentence is a PALINDROME (ignoring spaces and punctuation)?", "options": ["A MAN A PLAN A CANAL PANAMA", "TIME FLIES LIKE AN ARROW", "TO BE OR NOT TO BE", "THE QUICK BROWN FOX"] }
+      ]
+    },
+
+    {
+      "id": "triple_definition_word",
+      "level": 3, "category": "language", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Find the single word that fits ALL THREE definitions:\n\n1. A type of structure beside a river\n2. To support or rely on\n3. A document recording your finances", "question": "What word fits all three?", "options": ["BANK", "STATEMENT", "SHORE", "RECORD"] },
+        { "stimulus": "Find the single word that fits ALL THREE definitions:\n\n1. Part of a tree\n2. A division of a company\n3. To split off in different directions", "question": "What word?", "options": ["BRANCH", "DIVISION", "ROOT", "SECTION"] }
+      ]
+    },
+
+    {
+      "id": "addition_basic",
+      "level": 1, "category": "math", "format": "free_form", "parameterized": true,
+      "params": {
+        "a": { "type": "int", "min": 18, "max": 79 },
+        "b": { "type": "int", "min": 18, "max": 79 }
+      },
+      "constraints": ["a + b > 50"],
+      "stimulus": { "type": "static_text", "text": "" },
+      "question": "What is {a} + {b}?",
+      "answer_expression": "a + b"
+    },
+
+    {
+      "id": "multiplication_basic",
+      "level": 1, "category": "math", "format": "free_form", "parameterized": true,
+      "params": {
+        "a": { "type": "int", "min": 6, "max": 12 },
+        "b": { "type": "int", "min": 6, "max": 12 }
+      },
+      "stimulus": { "type": "static_text", "text": "" },
+      "question": "What is {a} × {b}?",
+      "answer_expression": "a * b"
+    },
+
+    {
+      "id": "percentage_of",
+      "level": 1, "category": "math", "format": "free_form", "parameterized": true,
+      "params": {
+        "percent": { "type": "choice", "values": [10, 20, 25, 50] },
+        "total": { "type": "int", "min": 40, "max": 200, "step": 20 }
+      },
+      "stimulus": { "type": "static_text", "text": "" },
+      "question": "What is {percent}% of {total}?",
+      "answer_expression": "percent * total / 100"
+    },
+
+    {
+      "id": "percentage_discount",
+      "level": 2, "category": "math", "format": "free_form", "parameterized": true,
+      "params": {
+        "original": { "type": "int", "min": 40, "max": 200, "step": 10 },
+        "discount": { "type": "choice", "values": [10, 20, 25] }
+      },
+      "stimulus": { "type": "static_text", "text": "A shirt originally costs ${original}. It is now {discount}% off." },
+      "question": "What is the sale price in dollars?",
+      "answer_expression": "original * (100 - discount) / 100",
+      "answer_tolerance": 0.01
+    },
+
+    {
+      "id": "ratio_problem",
+      "level": 2, "category": "math", "format": "free_form", "parameterized": true,
+      "params": {
+        "ratio_a": { "type": "int", "min": 2, "max": 5 },
+        "ratio_b": { "type": "int", "min": 2, "max": 5 },
+        "groups": { "type": "int", "min": 3, "max": 6 }
+      },
+      "constraints": ["ratio_a != ratio_b"],
+      "stimulus": { "type": "static_text", "text": "A bag contains red and blue marbles in the ratio {ratio_a}:{ratio_b}. There are {(ratio_a + ratio_b) * groups} marbles in total." },
+      "question": "How many red marbles are there?",
+      "answer_expression": "ratio_a * groups"
+    },
+
+    {
+      "id": "fraction_compare",
+      "level": 2, "category": "math", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Which is larger: 3/7 or 4/9?", "options": ["4/9", "3/7", "They are equal", "Cannot be determined"], "note": "3/7≈0.429, 4/9≈0.444" },
+        { "stimulus": "Which is largest?", "options": ["7/10", "2/3", "5/8", "11/16"], "note": "7/10=0.7, 2/3≈0.667, 5/8=0.625, 11/16≈0.688" },
+        { "stimulus": "Which is smallest?", "options": ["3/8", "5/12", "7/16", "9/20"], "note": "3/8=0.375 smallest. 5/12≈0.417, 7/16≈0.438, 9/20=0.45" }
+      ]
+    },
+
+    {
+      "id": "percentage_compound",
+      "level": 3, "category": "math", "format": "free_form", "parameterized": true,
+      "params": {
+        "original": { "type": "int", "min": 100, "max": 200, "step": 20 },
+        "first": { "type": "choice", "values": [20, 25] },
+        "second": { "type": "choice", "values": [10, 20] }
+      },
+      "stimulus": { "type": "static_text", "text": "A price starts at ${original}. It is increased by {first}%, then decreased by {second}%." },
+      "question": "What is the final price in dollars? (round to nearest dollar)",
+      "answer_expression": "round(original * (1 + first/100) * (1 - second/100))",
+      "answer_tolerance": 1,
+      "trap_note": "Common error: +X% then -X% returns to original. Actually it doesn't."
+    },
+
+    {
+      "id": "tip_split",
+      "level": 3, "category": "math", "format": "free_form", "parameterized": true,
+      "params": {
+        "people": { "type": "int", "min": 4, "max": 8 },
+        "cost_each_base": { "type": "int", "min": 12, "max": 25 },
+        "tip_percent": { "type": "choice", "values": [15, 20] }
+      },
+      "stimulus": { "type": "static_text", "text": "{people} people share a meal. The bill before tip is ${people * cost_each_base}. They add a {tip_percent}% tip and split evenly." },
+      "question": "How much does each person pay? (in dollars, round to nearest cent)",
+      "answer_expression": "round(cost_each_base * (1 + tip_percent/100), 2)",
+      "answer_tolerance": 0.01
+    },
+
+    {
+      "id": "sum_difference_simple",
+      "level": 1, "category": "algebra", "format": "free_form", "parameterized": true,
+      "params": {
+        "sum_total": { "type": "int", "min": 14, "max": 30 },
+        "difference": { "type": "int", "min": 2, "max": 10 }
+      },
+      "constraints": ["(sum_total - difference) % 2 == 0", "sum_total > difference"],
+      "stimulus": { "type": "static_text", "text": "Two numbers sum to {sum_total}. One is {difference} more than the other." },
+      "question": "What is the smaller number?",
+      "answer_expression": "(sum_total - difference) / 2"
+    },
+
+    {
+      "id": "bat_and_ball",
+      "level": 2, "category": "algebra", "format": "free_form", "parameterized": true,
+      "params": {
+        "total_cents": { "type": "int", "min": 110, "max": 220, "step": 10 },
+        "diff_cents": { "type": "int", "min": 100, "max": 200, "step": 10 }
+      },
+      "constraints": ["total_cents > diff_cents", "(total_cents - diff_cents) % 2 == 0"],
+      "stimulus": { "type": "static_text", "text": "A bat and a ball cost {total_cents} cents together. The bat costs {diff_cents} cents MORE than the ball." },
+      "question": "How much does the ball cost? (in cents)",
+      "answer_expression": "(total_cents - diff_cents) / 2",
+      "trap_note": "Intuitive trap: people answer (total - diff) directly. Correct requires dividing by 2."
+    },
+
+    {
+      "id": "age_problem",
+      "level": 2, "category": "algebra", "format": "free_form", "parameterized": true,
+      "params": {
+        "ratio_now": { "type": "int", "min": 3, "max": 5 },
+        "ratio_later": { "type": "int", "min": 2, "max": 3 },
+        "years": { "type": "int", "min": 5, "max": 15 }
+      },
+      "constraints": ["ratio_now > ratio_later"],
+      "stimulus": { "type": "static_text", "text": "A father is currently {ratio_now} times as old as his son. In {years} years, he will be {ratio_later} times as old as his son." },
+      "question": "How old is the son now?",
+      "answer_expression": "years * (ratio_later - 1) / (ratio_now - ratio_later)"
+    },
+
+    {
+      "id": "trains_opposite_directions",
+      "level": 2, "category": "algebra", "format": "free_form", "parameterized": true,
+      "params": {
+        "speed_a": { "type": "int", "min": 40, "max": 70, "step": 10 },
+        "speed_b": { "type": "int", "min": 50, "max": 80, "step": 10 },
+        "duration": { "type": "int", "min": 2, "max": 5 }
+      },
+      "stimulus": { "type": "static_text", "text": "Two trains leave the same station at the same time, heading in OPPOSITE directions. One travels at {speed_a} mph, the other at {speed_b} mph." },
+      "question": "How many miles apart are they after {duration} hours?",
+      "answer_expression": "(speed_a + speed_b) * duration"
+    },
+
+    {
+      "id": "doubling_half_problem",
+      "level": 3, "category": "algebra", "format": "free_form", "parameterized": true,
+      "params": { "total_days": { "type": "int", "min": 20, "max": 40 } },
+      "stimulus": { "type": "static_text", "text": "A patch of bacteria doubles in size every day. On day {total_days}, the patch fills the entire petri dish." },
+      "question": "On what day did the patch fill HALF the dish?",
+      "answer_expression": "total_days - 1",
+      "trap_note": "Intuitive trap: people answer total_days / 2. Correct: doubling means yesterday was half."
+    },
+
+    {
+      "id": "shared_work",
+      "level": 3, "category": "algebra", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Alice can paint a fence in 4 hours. Bob can paint the same fence in 6 hours. They work together on one fence." },
+      "question": "How long until the fence is fully painted?",
+      "options": ["2 hours 24 minutes", "2 hours 30 minutes", "5 hours", "10 hours"],
+      "note": "Combined rate 1/4+1/6=5/12 per hour. Time = 12/5 = 2.4 h = 2h 24m. Trap: 5h (averaging 4 and 6)."
+    },
+
+    {
+      "id": "cube_count_total",
+      "level": 1, "category": "spatial", "format": "mcq", "parameterized": true,
+      "params": { "n": { "type": "int", "min": 3, "max": 4 } },
+      "stimulus": { "type": "static_text", "text": "A solid cube is built from smaller cubes, with {n} cubes along each edge." },
+      "question": "How many small cubes are there in total?",
+      "options_expression": ["n*n*n", "n*n", "n*3", "n*6"]
+    },
+
+    {
+      "id": "painted_cube_corners",
+      "level": 2, "category": "spatial", "format": "mcq", "parameterized": true,
+      "params": { "n": { "type": "int", "min": 3, "max": 5 } },
+      "stimulus": { "type": "static_text", "text": "A solid cube is painted red on all 6 outer faces, then cut into {n}×{n}×{n} = {n*n*n} smaller equal cubes." },
+      "question": "How many of the small cubes have exactly 3 red faces (corner pieces)?",
+      "options": ["8", "12", "6", "4"],
+      "note": "Always 8 (the 8 corners), regardless of n>=2."
+    },
+
+    {
+      "id": "painted_cube_one_face",
+      "level": 2, "category": "spatial", "format": "mcq", "parameterized": true,
+      "params": { "n": { "type": "int", "min": 4, "max": 5 } },
+      "stimulus": { "type": "static_text", "text": "A solid cube is painted red on all 6 outer faces, then cut into {n}×{n}×{n} = {n*n*n} smaller equal cubes." },
+      "question": "How many of the small cubes have exactly ONE red face?",
+      "options_expression": ["6 * (n-2) * (n-2)", "6 * (n-2)", "(n-2) * (n-2)", "6 * n"]
+    },
+
+    {
+      "id": "hexagon_symmetry",
+      "level": 3, "category": "spatial", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Consider a regular hexagon (6 sides, all equal length, all equal angles)." },
+      "question": "How many lines of symmetry does it have?",
+      "options": ["6", "3", "12", "4"]
+    },
+
+    {
+      "id": "cube_unfolding",
+      "level": 4, "category": "spatial", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A die is unfolded into this cross-shape (numbers shown on each face). A standard die has opposite faces summing to 7.\n\n        [2]\n   [1] [3] [6] [4]\n        [5]\n\nThe [3] is at the center of the cross." },
+      "question": "When folded into a cube, what number is OPPOSITE the face showing 6?",
+      "options": ["1", "2", "5", "4"],
+      "note": "3 is front, 4 is back (two steps right of 3 wraps to opposite). 2-5 are top-bottom. 1-6 are left-right (opposite). So 6's opposite is 1."
+    },
+
+    {
+      "id": "coin_two_heads",
+      "level": 2, "category": "probability", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "You flip a fair coin twice." },
+      "question": "What is the probability of getting heads BOTH times?",
+      "options": ["1/4", "1/2", "1/3", "1/8"]
+    },
+
+    {
+      "id": "dice_sum_likely",
+      "level": 2, "category": "probability", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "You roll two standard six-sided dice and sum the results." },
+      "question": "Which sum is MOST likely?",
+      "options": ["7", "6", "10", "All sums are equally likely"],
+      "note": "7 has 6 combinations (1-6, 2-5, 3-4 and reverses). 6 has 5 combinations."
+    },
+
+    {
+      "id": "three_flips_exactly_two_heads",
+      "level": 2, "category": "probability", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "You flip a fair coin three times." },
+      "question": "What is the probability of getting EXACTLY two heads?",
+      "options": ["3/8", "1/4", "1/2", "2/3"]
+    },
+
+    {
+      "id": "marbles_no_replacement",
+      "level": 3, "category": "probability", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A bag contains 3 red marbles and 5 blue marbles. You draw two marbles one at a time WITHOUT REPLACEMENT." },
+      "question": "What is the probability that BOTH are red?",
+      "options": ["3/28", "9/64", "1/8", "3/8"],
+      "note": "3/8 × 2/7 = 6/56 = 3/28. Trap: 9/64 (with replacement)."
+    },
+
+    {
+      "id": "monty_hall",
+      "level": 3, "category": "probability", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Three closed doors. A prize is behind exactly one. You pick Door 1. The host — who knows where the prize is — opens Door 3, revealing nothing. You may keep Door 1 or switch to Door 2." },
+      "question": "What gives you the best chance of winning?",
+      "options": ["Switch (2/3 chance to win)", "Keep (no change to odds)", "It doesn't matter (50/50)", "Cannot be determined"]
+    },
+
+    {
+      "id": "two_child_paradox",
+      "level": 3, "category": "probability", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A family has exactly two children. You're told that at least one of them is a girl. (Each child is independently a boy or girl with equal probability.)" },
+      "question": "What is the probability that BOTH children are girls?",
+      "options": ["1/3", "1/2", "1/4", "2/3"],
+      "note": "Sample space: BB, BG, GB, GG. Given at least one G, remove BB. Remaining: BG, GB, GG. P(GG) = 1/3."
+    },
+
+    {
+      "id": "base_rate_disease",
+      "level": 4, "category": "probability", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A rare disease affects 1 in 1,000 people. A test is 99% accurate (99% of sick people test positive, AND 99% of healthy people test negative). You test positive." },
+      "question": "What is the approximate probability you actually have the disease?",
+      "options": ["About 9%", "About 99%", "About 50%", "About 90%"],
+      "note": "Out of 1M: 1000 sick → 990 true pos. 999,000 healthy → 9990 false pos. True+/all+ = 990/10980 ≈ 9%."
+    },
+
+    {
+      "id": "tuesday_boy",
+      "level": 4, "category": "probability", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A man has exactly two children. You learn that at least one of them is a boy born on a Tuesday. (Each child is independently boy/girl with equal probability and independently born on any of 7 weekdays with equal probability.)" },
+      "question": "What is the probability BOTH children are boys?",
+      "options": ["13/27", "1/3", "1/2", "27/49"]
+    },
+
+    {
+      "id": "seconds_in_year",
+      "level": 1, "category": "estimation", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "About how many seconds are there in one year?" },
+      "question": "Closest answer:",
+      "options": ["About 31 million", "About 8 million", "About 525,000", "About 86 billion"],
+      "note": "60×60×24×365 ≈ 31.5M. Trap: 525,600 (minutes in a year)."
+    },
+
+    {
+      "id": "moon_distance",
+      "level": 1, "category": "estimation", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "About how far is the Moon from Earth, on average?" },
+      "question": "Closest answer:",
+      "options": ["About 240,000 miles", "About 24,000 miles", "About 2.4 million miles", "About 24 million miles"]
+    },
+
+    {
+      "id": "heartbeats_per_year",
+      "level": 2, "category": "estimation", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "An average adult human heart beats about 70 times per minute. About how many times does it beat in a year?" },
+      "question": "Closest answer:",
+      "options": ["About 37 million", "About 3.7 million", "About 370 million", "About 100 million"]
+    },
+
+    {
+      "id": "blinks_per_day",
+      "level": 2, "category": "estimation", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "About how many times does an average person blink during one full day (16 waking hours)?" },
+      "question": "Closest answer:",
+      "options": ["About 17,000", "About 1,700", "About 170,000", "About 1,000"]
+    },
+
+    {
+      "id": "grains_of_rice",
+      "level": 2, "category": "estimation", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "About how many grains of rice are in a 1 kg (2.2 lb) bag?" },
+      "question": "Closest answer:",
+      "options": ["About 50,000", "About 5,000", "About 500,000", "About 5 million"]
+    },
+
+    {
+      "id": "words_in_novel",
+      "level": 2, "category": "estimation", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "About how many words are in a typical novel (around 300 pages)?" },
+      "question": "Closest answer:",
+      "options": ["About 90,000", "About 30,000", "About 300,000", "About 9,000"]
+    },
+
+    {
+      "id": "cells_human_body",
+      "level": 3, "category": "estimation", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "About how many cells are in the human body?" },
+      "question": "Closest answer:",
+      "options": ["About 37 trillion", "About 37 billion", "About 37 quadrillion", "About 3.7 billion"]
+    },
+
+    {
+      "id": "walk_equator",
+      "level": 4, "category": "estimation", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Earth's equator is about 25,000 miles around. If you walked at 3 mph for 8 hours every day (no rest days), about how long would it take to walk all the way around?" },
+      "question": "Closest answer:",
+      "options": ["About 3 years", "About 10 months", "About 7 years", "About 6 months"],
+      "note": "24 mi/day. 25000/24 ≈ 1042 days ≈ 2.85 years."
+    },
+
+    {
+      "id": "two_groups_pair_up",
+      "level": 1, "category": "categorization", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Which TWO of these belong together?\n\nCAT, BANANA, DOG, RIVER", "question": "Pair:", "options": ["CAT and DOG", "CAT and BANANA", "DOG and RIVER", "BANANA and RIVER"] },
+        { "stimulus": "Which TWO belong together?\n\nPIANO, OCEAN, GUITAR, MOUNTAIN", "question": "Pair:", "options": ["PIANO and GUITAR", "OCEAN and MOUNTAIN", "PIANO and MOUNTAIN", "GUITAR and OCEAN"] }
+      ]
+    },
+
+    {
+      "id": "shared_property",
+      "level": 2, "category": "categorization", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "What property do these items share?\n\nKEY, NAIL, NEEDLE, ARROW", "question": "Shared property:", "options": ["All have a pointed end", "All are made of metal", "All are small", "All are tools"] },
+        { "stimulus": "What property do these share?\n\nMIRROR, LAKE, POLISHED FLOOR, CALM POND", "question": "Shared property:", "options": ["All can reflect images", "All are man-made", "All are flat", "All are made of water"] }
+      ]
+    },
+
+    {
+      "id": "outlier_planets",
+      "level": 2, "category": "categorization", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Which one does NOT belong with the others?\n\nMERCURY, VENUS, EARTH, JUPITER" },
+      "question": "Choose the outlier:",
+      "options": ["JUPITER (gas giant; others are rocky)", "MERCURY (closest to sun)", "EARTH (only one with life)", "VENUS (hottest surface)"]
+    },
+
+    {
+      "id": "outlier_shapes_dimension",
+      "level": 3, "category": "categorization", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Which one does NOT belong?\n\nSQUARE, CIRCLE, TRIANGLE, CUBE" },
+      "question": "The outlier and the reason:",
+      "options": ["CUBE (3-dimensional; others are 2-dimensional)", "CIRCLE (no straight edges; others have edges)", "TRIANGLE (3 sides; others have 4 or curved)", "SQUARE (regular; others are not always regular)"]
+    },
+
+    {
+      "id": "axis_primes_composites",
+      "level": 3, "category": "categorization", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "What rule splits these into the two groups?\n\nGroup A: 12, 18, 24, 30, 36\nGroup B: 7, 11, 13, 17, 19" },
+      "question": "Choose the rule:",
+      "options": ["Group A: divisible by 6; Group B: prime numbers", "Group A: even; Group B: odd", "Group A: under 50; Group B: between 7 and 19", "Group A: ascending; Group B: descending"]
+    },
+
+    {
+      "id": "colors_emotion_match",
+      "level": 2, "category": "categorization", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Which TWO words share a common association in everyday English?\n\nRED, CALM, ANGRY, BLUE" },
+      "question": "Pair:",
+      "options": ["RED and ANGRY (anger / 'seeing red')", "BLUE and CALM (calm 'blue' sky)", "RED and BLUE (primary colors)", "CALM and ANGRY (emotions)"]
+    },
+
+    {
+      "id": "order_by_size_animals",
+      "level": 1, "category": "sequencing", "format": "mcq", "parameterized": false,
+      "variants": [
+        { "stimulus": "Order from SMALLEST to LARGEST:\n\nELEPHANT, MOUSE, HORSE, CAT", "question": "Correct order:", "options": ["Mouse, Cat, Horse, Elephant", "Mouse, Horse, Cat, Elephant", "Cat, Mouse, Horse, Elephant", "Mouse, Cat, Elephant, Horse"] },
+        { "stimulus": "Order by typical size (smallest to largest):\n\nGOLF BALL, BASKETBALL, MARBLE, TENNIS BALL", "question": "Correct order:", "options": ["Marble, Golf ball, Tennis ball, Basketball", "Golf ball, Marble, Tennis ball, Basketball", "Marble, Tennis ball, Golf ball, Basketball", "Marble, Golf ball, Basketball, Tennis ball"] }
+      ]
+    },
+
+    {
+      "id": "order_inventions",
+      "level": 2, "category": "sequencing", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Order these inventions from EARLIEST to LATEST:\n\nPRINTING PRESS, INTERNET, AUTOMOBILE, ELECTRIC LIGHT BULB" },
+      "question": "Correct order:",
+      "options": ["Printing press, Light bulb, Automobile, Internet", "Printing press, Automobile, Light bulb, Internet", "Light bulb, Printing press, Automobile, Internet", "Printing press, Internet, Automobile, Light bulb"],
+      "note": "Press ~1440, bulb 1879, auto ~1886, internet ~1969."
+    },
+
+    {
+      "id": "order_historical_eras",
+      "level": 2, "category": "sequencing", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Order these periods from EARLIEST to LATEST:\n\nRENAISSANCE, INDUSTRIAL REVOLUTION, ANCIENT EGYPT, ROMAN EMPIRE" },
+      "question": "Correct order:",
+      "options": ["Ancient Egypt, Roman Empire, Renaissance, Industrial Revolution", "Roman Empire, Ancient Egypt, Renaissance, Industrial Revolution", "Ancient Egypt, Renaissance, Roman Empire, Industrial Revolution", "Ancient Egypt, Roman Empire, Industrial Revolution, Renaissance"]
+    },
+
+    {
+      "id": "order_animal_weight",
+      "level": 3, "category": "sequencing", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Order these animals from LIGHTEST to HEAVIEST (adult):\n\nAFRICAN ELEPHANT, BLUE WHALE, GIRAFFE, POLAR BEAR" },
+      "question": "Correct order:",
+      "options": ["Polar bear, Giraffe, Elephant, Blue whale", "Giraffe, Polar bear, Elephant, Blue whale", "Polar bear, Elephant, Giraffe, Blue whale", "Polar bear, Giraffe, Blue whale, Elephant"],
+      "note": "Polar bear ~500kg, giraffe ~1200kg, elephant ~6000kg, blue whale ~150,000kg"
+    },
+
+    {
+      "id": "order_time_scales",
+      "level": 4, "category": "sequencing", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "Order from FASTEST to SLOWEST (by typical duration):\n\nGLACIAL EROSION, LIGHTNING STRIKE, HUMAN HEARTBEAT, A SUNSET (the act of the sun setting below horizon)" },
+      "question": "Correct order:",
+      "options": ["Lightning, Heartbeat, Sunset, Glacier", "Heartbeat, Lightning, Sunset, Glacier", "Lightning, Sunset, Heartbeat, Glacier", "Lightning, Heartbeat, Glacier, Sunset"],
+      "note": "Lightning ~ms, heartbeat ~1s, sunset ~minutes, glacier ~centuries."
+    },
+
+    {
+      "id": "staircase_min_moves",
+      "level": 1, "category": "process", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A staircase has 10 steps. You can climb 1 or 2 steps at a time. You want to reach the top in the FEWEST possible moves." },
+      "question": "Minimum number of moves?",
+      "options": ["5", "10", "6", "7"]
+    },
+
+    {
+      "id": "jug_2_in_5",
+      "level": 1, "category": "process", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "You have a 5-gallon jug and a 3-gallon jug, both empty. You can fill, empty, or pour from one into the other. You want EXACTLY 2 gallons in the 5-gallon jug." },
+      "question": "Choose the fastest method:",
+      "options": [
+        "Fill the 5-gallon; pour into the 3-gallon until full (2 gallons remain in the 5)",
+        "Fill the 3-gallon; pour into the 5-gallon (you now have 3 in the 5)",
+        "Fill both; dump the 5-gallon until 2 remain",
+        "It's impossible without a measuring tool"
+      ]
+    },
+
+    {
+      "id": "jug_4_in_5",
+      "level": 2, "category": "process", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "You have a 5-liter jug and a 3-liter jug, both empty. You can fill from a tap, empty into a sink, or pour from one to the other. You want EXACTLY 4 liters in the 5-liter jug.\n\nEach 'fill', 'empty', or 'pour' counts as one operation." },
+      "question": "What is the minimum number of operations needed?",
+      "options": ["6", "4", "8", "Impossible"],
+      "note": "Fill 5(1). Pour 5→3 until 3 full(2): 5=2, 3=3. Empty 3(3). Pour 5→3(4): 5=0, 3=2. Fill 5(5). Pour 5→3 until 3 full(6): 5=4, 3=3. = 6 ops."
+    },
+
+    {
+      "id": "river_crossing_sequence",
+      "level": 2, "category": "process", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "A farmer must cross a river with a wolf, a goat, and a cabbage. The boat carries the farmer plus one other item. Left alone: wolf eats goat, goat eats cabbage." },
+      "question": "Which sequence successfully gets all three across?",
+      "options": [
+        "Goat across; return alone; wolf across; bring goat back; cabbage across; return alone; goat across",
+        "Wolf across; return alone; goat across; cabbage across; return for wolf",
+        "Cabbage across; return alone; goat across; wolf across; return for cabbage",
+        "Take all three in three consecutive solo trips"
+      ]
+    },
+
+    {
+      "id": "burning_rope_45",
+      "level": 4, "category": "process", "format": "mcq", "parameterized": false,
+      "stimulus": { "type": "static_text", "text": "You have two ropes. Each takes exactly 60 minutes to burn end-to-end, but they burn UNEVENLY (some sections fast, some slow). You have unlimited lighters but no clock." },
+      "question": "How do you measure EXACTLY 45 minutes?",
+      "options": [
+        "Light rope 1 at BOTH ends and rope 2 at ONE end simultaneously. When rope 1 finishes (30 min), light rope 2's other end. When rope 2 finishes, 45 minutes have passed.",
+        "Light each rope at one end. When the first finishes, 60 minutes have passed; subtract 15 mentally.",
+        "Cut both ropes in half; light all four pieces simultaneously.",
+        "It is impossible without a clock."
+      ]
+    }
+
+  ],
+
+  "_implementation_notes": {
+    "expression_evaluator": "Server needs a small expression evaluator supporting: +, -, *, /, %, parentheses, math.ceil/floor/round, abs, min, max, array indexing (sequence[i], options[i]), comparison operators (==, !=, <, <=, >, >=), and boolean and/or.",
+    "param_substitution": "In stimulus.text, question, and option strings, substitute {param_name} with the rolled value. Also support {param_name_ordinal} which renders the value as an ordinal word (1→'first', 2→'second', etc.) and {expression} for inline expression evaluation.",
+    "constraint_validation": "After rolling params, evaluate each constraint expression. If any fails, re-roll. Max 20 attempts before giving up and picking a different puzzle.",
+    "options_strategy_resolver": "For puzzles using options_strategy (text string description), implement specific resolvers for each strategy. Strategies used: 'sequence[pos]' (item at position from rolled flash sequence), 'sequence[other_position]' (random other position), 'pool_unshown_N' (random item from pool not in sequence), 'correct_count +/- N' (numeric distractor relative to correct), 'color_unshown' / 'random_int_not_shown' (categorical unshown).",
+    "variants_resolution": "If a puzzle has 'variants' array, server picks one at game start (random). The picked variant's stimulus, question, and options replace the puzzle-level fields. All other fields (level, category, format) come from the puzzle level.",
+    "option_shuffling": "In all 'options' and 'options_expression' arrays, the FIRST entry is always the correct answer. Client must shuffle the array at render time so position doesn't leak the answer.",
+    "flash_durations": "Defined in DOORS_SPEC.md under 'Flash Duration Rules'. Each stimulus references a duration_profile that maps to a per-item or total time.",
+    "answer_validation": {
+      "numeric": "Parse user input as float. Compare to answer_expression (evaluated) or answer (literal). Use answer_tolerance (default 0) for fuzzy match.",
+      "text": "Trim whitespace and uppercase both sides. Match against answer or any of accepted_answers. Honor case_insensitive flag.",
+      "choice": "Compare submitted option index (after un-shuffling) to correct index (always 0 in source, since first entry is correct)."
+    }
+  }
+}

@@ -3,260 +3,502 @@
 const fs = require('fs');
 const path = require('path');
 
-const PUZZLES_PATH = path.join(__dirname, 'data/puzzles.json');
+const PUZZLES_PATH = path.join(__dirname, 'data/puzzles_v2.json');
 const MAX_ROLL_ATTEMPTS = 20;
 
-// Math helpers injected into expression evaluation scope
-const _math = { ceil: Math.ceil, floor: Math.floor, round: Math.round, abs: Math.abs, min: Math.min, max: Math.max };
+// ─────────────────────────────────────────────────────────────────
+// Expression evaluator
+// Supports: arithmetic, math.* helpers, ternary, array indexing.
+// The puzzle JSON may use ^ for exponentiation (mapped to **).
 
-// Evaluate a JS-like expression with a given scope of named values.
-// ^ is replaced with ** so puzzle JSON can use caret for exponentiation.
+// `round` supports both round(n) and round(n, decimals).
+function roundTo(n, decimals) {
+  if (decimals === undefined) return Math.round(n);
+  const f = Math.pow(10, decimals);
+  return Math.round(n * f) / f;
+}
+
+const _math = {
+  ceil: Math.ceil, floor: Math.floor, round: roundTo,
+  abs: Math.abs, min: Math.min, max: Math.max,
+  sqrt: Math.sqrt, pow: Math.pow,
+};
+
+// Bare helpers exposed directly so puzzle expressions can write round(x) etc.
+const _bareHelpers = {
+  ceil: Math.ceil, floor: Math.floor, round: roundTo,
+  abs: Math.abs, min: Math.min, max: Math.max,
+};
+
 function evalExpr(expr, scope) {
-  const safeExpr = expr.replace(/\^/g, '**');
-  const keys = ['math', 'min', 'abs', 'ceil', 'floor', 'round', ...Object.keys(scope)];
-  const vals = [_math, Math.min, Math.abs, Math.ceil, Math.floor, Math.round,
-                ...Object.keys(scope).map(k => scope[k])];
-  try {
-    return new Function(...keys, '"use strict"; return (' + safeExpr + ')').apply(null, vals);
-  } catch (e) {
-    throw new Error(`evalExpr failed for "${expr}": ${e.message}`);
+  const safe = String(expr).replace(/\^/g, '**');
+  const merged = { ..._bareHelpers, ...scope, math: _math };
+  const keys = Object.keys(merged);
+  const vals = Object.values(merged);
+  return new Function(...keys, '"use strict"; return (' + safe + ')').apply(null, vals);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Helpers
+
+function toOrdinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function shuffleInPlace(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function shuffled(arr) { return shuffleInPlace([...arr]); }
+
+function drawN(pool, n) {
+  return shuffled(pool).slice(0, n);
+}
+
+function randInt(lo, hi) {
+  return lo + Math.floor(Math.random() * (hi - lo + 1));
+}
+
+function randomInts(count, lo, hi) {
+  return Array.from({ length: count }, () => randInt(lo, hi));
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Flash sequence + grid generators (keyed by `source` field in JSON)
+
+function generateSequence(source, pools) {
+  switch (source) {
+    case 'draw_5_from_word_pool':
+      return drawN(pools.word_pool, 5);
+    case 'draw_5_from_color_pool':
+      return drawN(pools.color_pool, 5);
+    case '5_random_ints_10_99':
+      return randomInts(5, 10, 99);
+    case '5_random_ints_3_19':
+      return randomInts(5, 3, 19);
+    case 'draw_6_from_word_pool_with_2or3_sharing_initial':
+      return drawWordsWithSharedInitial(pools.word_pool);
+    default:
+      throw new Error(`Unknown flash_sequence source: ${source}`);
   }
 }
+
+function drawWordsWithSharedInitial(pool) {
+  const byLetter = {};
+  for (const w of pool) {
+    const l = w[0];
+    (byLetter[l] = byLetter[l] || []).push(w);
+  }
+  const candidateLetters = Object.entries(byLetter).filter(([, ws]) => ws.length >= 2);
+  if (candidateLetters.length === 0) return drawN(pool, 6);
+
+  const [letter, words] = candidateLetters[Math.floor(Math.random() * candidateLetters.length)];
+  const shareCount = Math.min(words.length, 2 + Math.floor(Math.random() * 2)); // 2 or 3
+  const shared = drawN(words, shareCount);
+  const others = pool.filter(w => w[0] !== letter);
+  const filler = drawN(others, 6 - shared.length);
+  return shuffled([...shared, ...filler]);
+}
+
+function generateGrid(source) {
+  if (source === 'random_4x4_letters_pool_AEIOULNRST') {
+    const pool = 'AEIOULNRST'.split('');
+    const grid = [];
+    for (let r = 0; r < 4; r++) {
+      const row = [];
+      for (let c = 0; c < 4; c++) row.push(pool[Math.floor(Math.random() * pool.length)]);
+      grid.push(row);
+    }
+    return grid;
+  }
+  throw new Error(`Unknown grid source: ${source}`);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Target-letter picker: choose a letter that appears N times in the data.
+
+function pickTargetLetterFromSequence(sequence, minCount, maxCount) {
+  const counts = {};
+  for (const w of sequence) {
+    const l = String(w)[0];
+    counts[l] = (counts[l] || 0) + 1;
+  }
+  const candidates = Object.entries(counts).filter(([, c]) => c >= minCount && c <= maxCount);
+  if (candidates.length > 0) {
+    return candidates[Math.floor(Math.random() * candidates.length)][0];
+  }
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+}
+
+function pickTargetLetterFromGrid(grid, minCount, maxCount) {
+  const counts = {};
+  for (const row of grid) for (const c of row) counts[c] = (counts[c] || 0) + 1;
+  const candidates = Object.entries(counts).filter(([, c]) => c >= minCount && c <= maxCount);
+  if (candidates.length > 0) {
+    return candidates[Math.floor(Math.random() * candidates.length)][0];
+  }
+  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Strategic options generation (recall puzzles)
+// Dispatched by puzzle ID. The FIRST returned option is always correct.
+
+function strategicOptions(template, params, sequence, grid, pools) {
+  switch (template.id) {
+
+    case 'word_recall_position':
+    case 'color_recall_position': {
+      const ask = params.ask_position;
+      const correct = sequence[ask - 1];
+      const otherIdxs = sequence.map((_, i) => i).filter(i => i !== ask - 1);
+      const other = sequence[otherIdxs[Math.floor(Math.random() * otherIdxs.length)]];
+      const pool = template.id === 'word_recall_position' ? pools.word_pool : pools.color_pool;
+      const unshown = pool.filter(x => !sequence.includes(x));
+      const [u1, u2] = drawN(unshown, 2);
+      return [correct, other, u1, u2];
+    }
+
+    case 'number_recall_position': {
+      const ask = params.ask_position;
+      const correct = sequence[ask - 1];
+      const otherIdxs = sequence.map((_, i) => i).filter(i => i !== ask - 1);
+      const other = sequence[otherIdxs[Math.floor(Math.random() * otherIdxs.length)]];
+      const used = new Set(sequence);
+      let u1, u2;
+      do { u1 = randInt(10, 99); } while (used.has(u1));
+      used.add(u1);
+      do { u2 = randInt(10, 99); } while (used.has(u2));
+      return [correct, other, u1, u2].map(String);
+    }
+
+    case 'word_recall_count_starting_letter': {
+      const target = params.target_letter;
+      const correctCount = sequence.filter(w => String(w)[0] === target).length;
+      const drift = Math.random() < 0.5 ? 2 : -2;
+      const distractor4 = Math.max(0, correctCount + drift);
+      const opts = [correctCount, correctCount + 1, Math.max(0, correctCount - 1), distractor4];
+      return dedupNumeric(opts).map(String);
+    }
+
+    case 'grid_letter_count': {
+      const target = params.target_letter;
+      const flat = grid.flat();
+      const correctCount = flat.filter(c => c === target).length;
+      const opts = [correctCount, correctCount + 1, Math.max(0, correctCount - 1), correctCount + 2];
+      return dedupNumeric(opts).map(String);
+    }
+
+    case 'word_recall_immediate_after': {
+      // anchor_position is 1-indexed (1..4). The anchor word is sequence[anchor_position-1].
+      // The correct answer is sequence[anchor_position] (the word AFTER the anchor).
+      const anchor = params.anchor_position;
+      const correct = sequence[anchor];
+      const anchorWord = sequence[anchor - 1];
+      const afterAfter = anchor + 1 < sequence.length ? sequence[anchor + 1] : null;
+      const used = [correct, anchorWord, afterAfter].filter(Boolean);
+      const unshown = pools.word_pool.filter(x => !sequence.includes(x) && !used.includes(x));
+      const u1 = afterAfter || drawN(unshown, 1)[0];
+      const remaining = unshown.filter(x => x !== u1);
+      const u2 = drawN(remaining, 1)[0];
+      return [correct, anchorWord, u1, u2];
+    }
+
+    default:
+      throw new Error(`No options_strategy handler for puzzle: ${template.id}`);
+  }
+}
+
+// Ensure all numeric options are distinct; if a collision occurs, nudge.
+function dedupNumeric(opts) {
+  const seen = new Set();
+  const out = [];
+  for (let v of opts) {
+    let n = v;
+    while (seen.has(n)) n += 1;
+    seen.add(n);
+    out.push(n);
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Flash duration profiles
+
+function flashTiming(profile, flashItems, grid, stimulusText) {
+  switch (profile) {
+    case 'single_digit_per_item':
+    case 'single_letter_per_item':
+      return { perItem: 1000, total: (flashItems?.length || 0) * 1000 };
+    case 'short_word_per_item':
+      return { perItem: 1200, total: (flashItems?.length || 0) * 1200 };
+    case 'long_word_per_item':
+      return { perItem: 1500, total: (flashItems?.length || 0) * 1500 };
+    case 'multi_digit_per_item':
+      return { perItem: 1500, total: (flashItems?.length || 0) * 1500 };
+    case 'grid_3x3':
+      return { perItem: 0, total: 4000 };
+    case 'grid_4x4':
+      return { perItem: 0, total: 6000 };
+    case 'grid_5x5':
+      return { perItem: 0, total: 8000 };
+    case 'flash_text_short':
+      return { perItem: 0, total: 2500 };
+    case 'flash_text_medium':
+      return { perItem: 0, total: 4000 };
+    case 'flash_text_long':
+      return { perItem: 0, total: 6000 };
+    default:
+      // Auto-pick for flash_text by length
+      if (stimulusText && typeof stimulusText === 'string') {
+        const len = stimulusText.length;
+        if (len <= 20) return { perItem: 0, total: 2500 };
+        if (len <= 50) return { perItem: 0, total: 4000 };
+        return { perItem: 0, total: 6000 };
+      }
+      return { perItem: 0, total: 0 };
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Parameter rolling
 
 function rollParam(spec) {
-  if (spec.type === 'choice') {
-    return spec.values[Math.floor(Math.random() * spec.values.length)];
+  if (spec.type === 'fixed') return spec.value;
+  if (spec.type === 'choice') return spec.values[Math.floor(Math.random() * spec.values.length)];
+  if (spec.type === 'int') {
+    const step = spec.step || 1;
+    const slots = Math.floor((spec.max - spec.min) / step) + 1;
+    return spec.min + Math.floor(Math.random() * slots) * step;
   }
-  const step = spec.step || 1;
-  const slots = Math.floor((spec.max - spec.min) / step) + 1;
-  return spec.min + Math.floor(Math.random() * slots) * step;
+  throw new Error(`Unknown param type: ${spec.type}`);
 }
 
-function rollParams(paramSpec) {
-  const params = {};
-  for (const [key, spec] of Object.entries(paramSpec)) {
-    params[key] = rollParam(spec);
-  }
-  return params;
-}
-
-function checkConstraints(constraints, params) {
-  for (const expr of constraints) {
-    if (!evalExpr(expr, params)) return false;
-  }
-  return true;
-}
-
-// Fisher-Yates partial shuffle to draw `count` items from a pool without replacement.
-function drawFromPool(pool, count) {
-  const copy = [...pool];
-  const n = copy.length;
-  for (let i = 0; i < count; i++) {
-    const j = i + Math.floor(Math.random() * (n - i));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy.slice(0, count);
-}
-
-function randomIntegers(count, min, max) {
-  return Array.from({ length: count }, () => min + Math.floor(Math.random() * (max - min + 1)));
-}
-
-// Compute clock-time string after adding `ahead` whole hours.
-// start_period is 'AM' | 'PM', hour is 1–12 (12-hour clock).
-function compute_time(hour, period, ahead) {
-  // Convert to 24-hour minutes-from-midnight
-  let h24 = hour % 12; // 12 → 0, 1–11 → 1–11
-  if (period === 'PM') h24 += 12;
-  let totalMin = h24 * 60 + ahead * 60;
-  totalMin = ((totalMin % (24 * 60)) + 24 * 60) % (24 * 60);
-  const h = Math.floor(totalMin / 60);
-  const newHour = h % 12 || 12;
-  const newPeriod = h < 12 ? 'AM' : 'PM';
-  return `${newHour}:00 ${newPeriod}`;
-}
-
-// Compute PM arrival time string. Start time is always PM in these puzzles.
-function compute_arrival(startHour, startMinute, durHours, durMinutes) {
-  const totalMin = startHour * 60 + startMinute + durHours * 60 + durMinutes;
-  const h = Math.floor(totalMin / 60) % 12 || 12;
-  const m = totalMin % 60;
-  return `${h}:${String(m).padStart(2, '0')} PM`;
-}
-
-// Canonical fraction string for a two-dice sum probability.
-function dice_sum_fraction(target) {
-  const map = { 5: '1/9', 6: '5/36', 7: '1/6', 8: '5/36', 9: '1/9' };
-  return map[target] || '?';
-}
-
-// Substitute {expr} placeholders in a template string.
-// Handles: {name}, {name:02d}, arithmetic like {start+2*step}, and the
-// special variants[key].options joined by '...' pattern.
-function substitutePlaceholders(text, params, questionFormat) {
-  if (!text) return '';
-  return text.replace(/\{([^}]+)\}/g, (match, raw) => {
-    const expr = raw.trim();
-
-    // Special: variants[varKey].options joined by 'sep'
-    const joinMatch = expr.match(/^variants\[(\w+)\]\.options\s+joined\s+by\s+'([^']*)'/);
-    if (joinMatch) {
-      const v = params.variants[params[joinMatch[1]]];
-      return v ? v.options.join(joinMatch[2]) : match;
+function rollParamsWithConstraints(paramSpec, constraints, puzzleId) {
+  if (!paramSpec) return {};
+  for (let attempt = 0; attempt < MAX_ROLL_ATTEMPTS; attempt++) {
+    const params = {};
+    for (const [key, spec] of Object.entries(paramSpec)) {
+      params[key] = rollParam(spec);
     }
-
-    // Zero-pad format: name:02d
-    const padMatch = expr.match(/^(\w+):02d$/);
-    if (padMatch) {
-      const val = params[padMatch[1]];
-      return val !== undefined ? String(val).padStart(2, '0') : match;
-    }
-
-    // Ordinal via question_format
-    if (questionFormat && questionFormat[expr] !== undefined && params[expr] !== undefined) {
-      const mapping = questionFormat[expr];
-      if (Array.isArray(mapping)) {
-        const idx = params[expr] - 1;
-        if (mapping[idx] !== undefined) return mapping[idx];
+    let ok = true;
+    if (constraints && constraints.length) {
+      for (const c of constraints) {
+        try {
+          if (!evalExpr(c, params)) { ok = false; break; }
+        } catch { ok = false; break; }
       }
     }
+    if (ok) return params;
+  }
+  throw new Error(`Could not satisfy constraints for puzzle "${puzzleId}"`);
+}
 
-    // General arithmetic / field expression
+// ─────────────────────────────────────────────────────────────────
+// Text substitution: {param}, {param_ordinal}, {expression}, {sequence[i]}
+
+function substitute(text, params, sequence) {
+  if (!text) return '';
+  const scope = { ...params };
+  if (sequence !== undefined) scope.sequence = sequence;
+  return String(text).replace(/\{([^}]+)\}/g, (m, raw) => {
+    const expr = raw.trim();
+    // {name_ordinal} — convert int to '1st', '2nd', etc.
+    const ord = expr.match(/^(\w+)_ordinal$/);
+    if (ord && params[ord[1]] !== undefined) return toOrdinal(params[ord[1]]);
     try {
-      const result = evalExpr(expr, params);
-      return String(result);
+      const v = evalExpr(expr, scope);
+      return String(v);
     } catch {
-      return match;
+      return m;
     }
   });
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Bank
+
 class PuzzleBank {
   constructor() {
     const raw = JSON.parse(fs.readFileSync(PUZZLES_PATH, 'utf8'));
-    this.puzzles = raw.puzzles;
+    this.pools = raw._pools || {};
+    // Filter out any non-puzzle entries; require id + level + category.
+    this.puzzles = (raw.puzzles || []).filter(p => p && p.id && p.level && p.category);
   }
 
   getAll() { return this.puzzles; }
   getById(id) { return this.puzzles.find(p => p.id === id) || null; }
+  getRoomOneDefault() {
+    return this.puzzles.find(p => p.is_room_one_default) || null;
+  }
 
-  // Resolve a puzzle template into a concrete, ready-to-play puzzle.
-  // The returned object is safe to broadcast to clients (no answer field).
-  // Call checkAnswer(resolved, submitted) to verify responses.
+  // Resolve a puzzle template into a concrete playable puzzle.
+  // Returned puzzle has _answer / _correctOption fields for server-side use;
+  // call clientView() to strip those before broadcasting.
   resolve(template) {
-    // ── 1. Roll parameters ──────────────────────────────────────────
-    let params = {};
-    if (template.parameterized && template.params) {
-      let attempts = 0;
-      do {
-        params = rollParams(template.params);
-        if (++attempts > MAX_ROLL_ATTEMPTS) {
-          throw new Error(`Constraint satisfaction failed for puzzle "${template.id}"`);
-        }
-      } while (template.constraints && !checkConstraints(template.constraints, params));
+    // ── 1. Pick a variant if applicable ──────────────────────────
+    let active = template;
+    if (Array.isArray(template.variants) && template.variants.length > 0) {
+      const variant = template.variants[Math.floor(Math.random() * template.variants.length)];
+      // Variant may carry stimulus as a string or as an object — normalize.
+      let stimulus = variant.stimulus;
+      if (typeof stimulus === 'string') stimulus = { type: 'static_text', text: stimulus };
+      active = {
+        ...template,
+        stimulus: stimulus || template.stimulus,
+        question: variant.question || template.question,
+        options: variant.options || template.options,
+        answer: variant.answer !== undefined ? variant.answer : template.answer,
+        accepted_answers: variant.accepted_answers || template.accepted_answers,
+      };
     }
 
-    // Expose variants array so answer_expression can index into it
-    if (template.variants) params.variants = template.variants;
+    // ── 2. Roll parameters ───────────────────────────────────────
+    const params = active.parameterized
+      ? rollParamsWithConstraints(active.params, active.constraints, active.id)
+      : {};
 
-    // ── 2. Resolve flash_sequence data ─────────────────────────────
+    // ── 3. Generate stimulus content (sequence/grid) ─────────────
     let flashItems = null;
-    if (template.stimulus && template.stimulus.type === 'flash_sequence') {
-      const s = template.stimulus;
-      if (s.source === 'draw_from_word_pool') {
-        const count = template.word_count || params.word_count || 5;
-        flashItems = drawFromPool(template.word_pool, count);
-        params.selected_words = flashItems; // available to answer_expression
-      } else if (s.source === 'random_integers') {
-        const count = params[s.count_field];
-        const [lo, hi] = s.value_range;
-        flashItems = randomIntegers(count, lo, hi);
-        params.sequence = flashItems;
+    let grid = null;
+    let stimulusText = '';
+    let stimulusType = 'static_text';
+
+    if (active.stimulus) {
+      stimulusType = active.stimulus.type;
+      if (stimulusType === 'flash_sequence') {
+        flashItems = generateSequence(active.stimulus.source, this.pools);
+        // Special: derive target_letter for puzzles that need one.
+        if (active.id === 'word_recall_count_starting_letter') {
+          params.target_letter = pickTargetLetterFromSequence(flashItems, 2, 3);
+        }
+      } else if (stimulusType === 'grid') {
+        grid = generateGrid(active.stimulus.source);
+        if (active.id === 'grid_letter_count') {
+          params.target_letter = pickTargetLetterFromGrid(grid, 2, 5);
+        }
+      } else {
+        // static_text or flash_text
+        stimulusText = substitute(active.stimulus.text || '', params, flashItems);
       }
     }
 
-    // ── 3. Substitute text fields ───────────────────────────────────
-    const stimulusText = template.stimulus ? substitutePlaceholders(template.stimulus.text, params, null) : '';
-    const question = substitutePlaceholders(template.question, params, template.question_format);
+    // ── 4. Substitute params + sequence into question ────────────
+    const question = substitute(active.question || '', params, flashItems);
 
+    // ── 5. Build options (MCQ) ───────────────────────────────────
     let options = null;
-    if (template.answer_type === 'choice' && template.options) {
-      options = template.options.map(o => substitutePlaceholders(o, params, null));
-    }
-
-    // ── 4. Compute answer (server-side only) ────────────────────────
-    let answer;
-    let acceptedAnswers = template.accepted_answers ? [...template.accepted_answers] : null;
-
-    if (template.answer_expression) {
-      const scope = { ...params, compute_time, compute_arrival, dice_sum_fraction };
-      const raw = evalExpr(template.answer_expression, scope);
-      answer = String(raw);
-
-      // dice_sum_probability: expand accepted answers from per-target map
-      if (template.accepted_answers_per_target) {
-        acceptedAnswers = template.accepted_answers_per_target[String(params.target_sum)] || [];
-        // Ensure canonical answer is also accepted
-        if (!acceptedAnswers.includes(answer)) acceptedAnswers = [answer, ...acceptedAnswers];
+    let correctOption = null;
+    if (active.format === 'mcq') {
+      let raw;
+      if (active.options) {
+        raw = active.options.map(o => substitute(o, params, flashItems));
+      } else if (active.options_expression) {
+        raw = active.options_expression.map(expr => {
+          try { return String(evalExpr(expr, { ...params, sequence: flashItems })); }
+          catch (e) { throw new Error(`options_expression "${expr}" failed in ${active.id}: ${e.message}`); }
+        });
+      } else if (active.options_strategy) {
+        raw = strategicOptions(active, params, flashItems, grid, this.pools)
+          .map(v => String(v));
+      } else {
+        throw new Error(`MCQ puzzle "${active.id}" has no options/options_expression/options_strategy`);
       }
-    } else if (template.answer_type === 'choice') {
-      // For choice puzzles, the canonical answer is the option index as a string.
-      answer = String(template.correct_option !== undefined ? template.correct_option : 0);
-    } else {
-      answer = template.answer;
+      correctOption = raw[0];
+      // Shuffle server-side. Client sends the chosen index; we look up the text.
+      options = shuffled(raw);
     }
 
-    // ── 5. Assemble resolved puzzle ─────────────────────────────────
+    // ── 6. Compute free-form answer ──────────────────────────────
+    let answer = null;
+    if (active.format === 'free_form') {
+      if (active.answer_expression) {
+        const scope = { ...params, sequence: flashItems };
+        try { answer = String(evalExpr(active.answer_expression, scope)); }
+        catch (e) { throw new Error(`answer_expression "${active.answer_expression}" failed in ${active.id}: ${e.message}`); }
+      } else if (active.answer !== undefined) {
+        answer = String(active.answer);
+      }
+    }
+
+    // ── 7. Flash timing ──────────────────────────────────────────
+    const profile = active.stimulus?.duration_profile;
+    const timing = flashTiming(profile, flashItems, grid, stimulusText);
+
     return {
-      id: template.id,
-      level: template.level,
-      category: template.category,
-      stimulusType: template.stimulus ? template.stimulus.type : 'static_text',
+      id: active.id,
+      level: active.level,
+      category: active.category,
+      format: active.format,
+      stimulusType,
       stimulusText,
       flashItems,
-      flashItemDurationMs: template.stimulus ? (template.stimulus.item_duration_ms || 0) : 0,
+      grid,
+      flashItemDurationMs: timing.perItem,
+      flashTotalMs: timing.total,
       question,
-      answerType: template.answer_type,
       options,
-      correctOption: template.correct_option !== undefined ? template.correct_option : null,
-      answerTolerance: template.answer_tolerance || 0,
-      caseInsensitive: template.case_insensitive !== false,
-      // Server-private fields (never broadcast):
+      answerTolerance: active.answer_tolerance || 0,
+      // Server-private
       _answer: answer,
-      _acceptedAnswers: acceptedAnswers,
+      _correctOption: correctOption,
+      _acceptedAnswers: active.accepted_answers || null,
+      _caseInsensitive: active.case_insensitive !== false,
     };
   }
 
-  // Returns { correct: bool }
+  // ── Answer checking ────────────────────────────────────────────
   checkAnswer(resolved, submitted) {
-    const { answerType, answerTolerance, correctOption, caseInsensitive, _answer, _acceptedAnswers } = resolved;
+    const { format, options, _answer, _correctOption, _acceptedAnswers, _caseInsensitive, answerTolerance } = resolved;
+    const subRaw = String(submitted ?? '').trim();
 
-    if (answerType === 'numeric') {
-      const n = parseFloat(String(submitted).trim());
-      const a = parseFloat(_answer);
-      if (isNaN(n)) return { correct: false };
-      return { correct: Math.abs(n - a) <= answerTolerance };
+    if (format === 'mcq') {
+      // Client sends the chosen index in the shuffled options array.
+      if (/^\d+$/.test(subRaw)) {
+        const idx = parseInt(subRaw, 10);
+        if (options && idx >= 0 && idx < options.length) {
+          return { correct: options[idx] === _correctOption };
+        }
+      }
+      // Fallback: compare submitted text to correctOption
+      return { correct: subRaw === _correctOption };
     }
 
-    if (answerType === 'choice') {
-      return { correct: parseInt(submitted, 10) === correctOption };
+    // free_form
+    // Numeric path: if answer looks numeric, do numeric comparison with tolerance.
+    if (_answer !== null && /^-?\d+(\.\d+)?$/.test(_answer)) {
+      const sub = parseFloat(subRaw.replace(/,/g, ''));
+      const ans = parseFloat(_answer);
+      if (!isNaN(sub) && !isNaN(ans)) {
+        return { correct: Math.abs(sub - ans) <= (answerTolerance || 0) };
+      }
+      return { correct: false };
     }
 
-    // text
-    const norm = s => { const t = String(s).trim(); return caseInsensitive ? t.toLowerCase() : t; };
-    const sub = norm(submitted);
-    if (norm(_answer) === sub) return { correct: true };
+    // Text path
+    const norm = s => {
+      const t = String(s).trim();
+      return _caseInsensitive ? t.toLowerCase() : t;
+    };
+    const subN = norm(subRaw);
+    if (_answer !== null && norm(_answer) === subN) return { correct: true };
     if (_acceptedAnswers) {
       for (const a of _acceptedAnswers) {
-        if (norm(a) === sub) return { correct: true };
+        if (norm(a) === subN) return { correct: true };
       }
     }
     return { correct: false };
   }
 
-  // Return a client-safe copy of a resolved puzzle (strip private fields).
+  // Strip server-private fields for client broadcast.
   clientView(resolved) {
-    const { _answer, _acceptedAnswers, ...pub } = resolved;
+    const { _answer, _correctOption, _acceptedAnswers, _caseInsensitive, ...pub } = resolved;
     return pub;
   }
 }
