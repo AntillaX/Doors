@@ -521,14 +521,15 @@ function onNewRoom(numeral, puzzle) {
   switch (puzzle.stimulusType) {
     case 'flash_sequence':
       if (puzzle.flashItems && puzzle.flashItems.length) {
-        runFlashSequence(puzzle.flashItems, puzzle.flashItemDurationMs || 1000, puzzle.flashTotalMs);
+        // Delay until after door-open animation (~700ms css + buffer)
+        setTimeout(() => runFlashSequence(puzzle.flashItems, puzzle.flashItemDurationMs || 1000, puzzle.flashTotalMs), 750);
       }
       break;
     case 'grid':
-      if (puzzle.grid) runGridFlash(puzzle.grid, puzzle.flashTotalMs || 6000);
+      if (puzzle.grid) setTimeout(() => runGridFlash(puzzle.grid, puzzle.flashTotalMs || 6000), 750);
       break;
     case 'flash_text':
-      runFlashText(puzzle.stimulusText || '', puzzle.flashTotalMs || 4000);
+      setTimeout(() => runFlashText(puzzle.stimulusText || '', puzzle.flashTotalMs || 4000), 750);
       break;
     case 'static_text':
     default:
@@ -729,7 +730,7 @@ function renderDeliverArea(state) {
 
   if (!puzzle) return;
 
-  if (puzzle.answerType === 'choice') {
+  if (puzzle.format === 'mcq') {
     $('text-input-wrap').hidden = true;
     $('live-answer').hidden = true;
     renderChoiceOptions(puzzle, amDeliverer, delivererText, phase);
