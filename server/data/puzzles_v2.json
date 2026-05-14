@@ -133,7 +133,7 @@
       "level": 2, "category": "pattern", "format": "mcq", "parameterized": true,
       "params": { "start": { "type": "int", "min": 1, "max": 3 } },
       "stimulus": { "type": "static_text", "text": "{start}, {start+1}, {start+3}, {start+6}, {start+10}, ?" },
-      "question": "What number comes next? (differences: +1, +2, +3, +4, ...)",
+      "question": "What number comes next?",
       "options_expression": ["start + 15", "start + 14", "start + 16", "start + 13"]
     },
 
@@ -145,9 +145,9 @@
         "mult": { "type": "int", "min": 2, "max": 3 },
         "add": { "type": "int", "min": 1, "max": 3 }
       },
-      "stimulus": { "type": "static_text", "text": "Pattern: multiply by {mult}, then add {add}.\n\n{start}, {start*mult+add}, {(start*mult+add)*mult+add}, ?" },
+      "stimulus": { "type": "static_text", "text": "{start}, {start*mult+add}, {(start*mult+add)*mult+add}, {((start*mult+add)*mult+add)*mult+add}, ?" },
       "question": "What number comes next?",
-      "answer_expression": "((start*mult+add)*mult+add)*mult+add"
+      "answer_expression": "(((start*mult+add)*mult+add)*mult+add)*mult+add"
     },
 
     {
@@ -181,20 +181,6 @@
         { "stimulus": "B2, D4, F6, H8, ?", "options": ["J10", "I10", "J9", "K11"] },
         { "stimulus": "A2, C4, E8, G16, ?", "options": ["I32", "I24", "H32", "I28"] }
       ]
-    },
-
-    {
-      "id": "simpsons_paradox",
-      "level": 4, "category": "probability", "format": "mcq", "parameterized": false,
-      "stimulus": { "type": "static_text", "text": "Two hospitals: A and B.\n\nHospital A: 90% survival on EASY cases (900/1000), 30% on HARD cases (60/200).\nHospital B: 95% on EASY (190/200), 50% on HARD (500/1000).\n\nOverall — A: 960/1200 = 80%. B: 690/1200 = 57.5%." },
-      "question": "If you need treatment (and you don't yet know if your case is easy or hard), which hospital is the better choice?",
-      "options": [
-        "Hospital B — it's better at BOTH case types",
-        "Hospital A — it has the higher overall survival rate",
-        "Either — they're statistically equivalent",
-        "Cannot be determined from these numbers"
-      ],
-      "note": "Simpson's paradox. B is better in every subcategory but A's overall rate looks better only because A sees more easy cases."
     },
 
     {
@@ -370,19 +356,6 @@
     },
 
     {
-      "id": "elevator_short_man",
-      "level": 2, "category": "lateral", "format": "mcq", "parameterized": false,
-      "stimulus": { "type": "static_text", "text": "A man lives on the 20th floor. Every morning he takes the elevator to the ground floor for work. When he comes home, he takes the elevator only to the 10th floor and walks up the remaining 10 flights — except on rainy days, when he takes the elevator all the way to the 20th floor." },
-      "question": "Why does he do this?",
-      "options": [
-        "He is short and can only reach the button for floor 10; on rainy days he has an umbrella to extend his reach",
-        "He likes the exercise but skips it when wet shoes are dangerous",
-        "The elevator is broken above floor 10 except during rain when maintenance reactivates it",
-        "He visits a neighbor on floor 10 each evening"
-      ]
-    },
-
-    {
       "id": "water_glass_bartender",
       "level": 2, "category": "lateral", "format": "mcq", "parameterized": false,
       "stimulus": { "type": "static_text", "text": "A woman walks into a bar and asks the bartender for a glass of water. The bartender pulls out a gun and points it at her. She says 'thank you' and leaves, satisfied." },
@@ -396,16 +369,11 @@
     },
 
     {
-      "id": "two_fathers_two_sons",
+      "id": "months_with_28_days",
       "level": 2, "category": "lateral", "format": "mcq", "parameterized": false,
-      "stimulus": { "type": "static_text", "text": "Two fathers and two sons sit down to eat eggs for breakfast. They eat exactly three eggs, and each person had one whole egg." },
-      "question": "How is this possible?",
-      "options": [
-        "They are grandfather, father, and son — only three people, but the father is both a son and a father",
-        "Someone ate two eggs",
-        "The eggs were oversized so they split one",
-        "Two of them are twins counted twice"
-      ]
+      "stimulus": { "type": "static_text", "text": "In a year, some months have 30 days, some have 31. How many months have AT LEAST 28 days?" },
+      "question": "Choose:",
+      "options": ["12 (every month has at least 28 days)", "1 (only February)", "4", "11"]
     },
 
     {
@@ -458,11 +426,13 @@
     },
 
     {
-      "id": "rhyme_match",
+      "id": "word_opposite",
       "level": 1, "category": "language", "format": "mcq", "parameterized": false,
       "variants": [
-        { "stimulus": "Which word rhymes with ORANGE?", "options": ["None of these — orange has no perfect rhyme", "Door hinge", "Strange", "Sponge"] },
-        { "stimulus": "Which word rhymes with PURPLE?", "options": ["None of these — purple has no perfect rhyme", "Circle", "Bubble", "Maple"] }
+        { "stimulus": "Which word means the OPPOSITE of ABUNDANT?", "options": ["SCARCE", "PLENTIFUL", "RICH", "FULL"] },
+        { "stimulus": "Which word means the OPPOSITE of TRANQUIL?", "options": ["AGITATED", "PEACEFUL", "SILENT", "CALM"] },
+        { "stimulus": "Which word means the OPPOSITE of FRAGILE?", "options": ["STURDY", "DELICATE", "BRITTLE", "WEAK"] },
+        { "stimulus": "Which word means the OPPOSITE of CONCEAL?", "options": ["REVEAL", "HIDE", "COVER", "MASK"] }
       ]
     },
 
