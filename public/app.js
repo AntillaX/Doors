@@ -106,6 +106,10 @@ function handleMessage(msg) {
         buildProgressMarks(msg.totalRooms || 10);
         showScreen('game');
         applyFullState(msg);
+        if (msg.phase === 'game_starting') {
+          showRulesModal(true, msg.countdown != null ? msg.countdown : 45);
+          updateReadyStatus(msg.readyPlayerIds || [], msg.players || []);
+        }
       }
       break;
     }
@@ -482,7 +486,10 @@ function renderPuzzleArea(state) {
 
   if (currentRoom && currentRoom !== currentRoomRendered) {
     currentRoomRendered = currentRoom;
-    onNewRoom(roomNumeral, puzzle);
+    // Skip the flash if we're joining (or rejoining) past the puzzle/flash phase —
+    // showing the words now would give an unfair recall advantage.
+    const skipFlash = phase && phase !== 'room_puzzle';
+    onNewRoom(roomNumeral, puzzle, skipFlash);
   }
 
   if ((phase === 'room_vote' || phase === 'room_deliver' || phase === 'room_resolve') && puzzle) {
@@ -494,7 +501,7 @@ function renderPuzzleArea(state) {
   }
 }
 
-function onNewRoom(numeral, puzzle) {
+function onNewRoom(numeral, puzzle, skipFlash = false) {
   $('stimulus-text').textContent = '';
   $('question-text').textContent = '';
   resetFlashDisplay();
@@ -520,16 +527,16 @@ function onNewRoom(numeral, puzzle) {
 
   switch (puzzle.stimulusType) {
     case 'flash_sequence':
-      if (puzzle.flashItems && puzzle.flashItems.length) {
+      if (!skipFlash && puzzle.flashItems && puzzle.flashItems.length) {
         // Delay until after door-open animation (~700ms css + buffer)
         setTimeout(() => runFlashSequence(puzzle.flashItems, puzzle.flashItemDurationMs || 1000, puzzle.flashTotalMs), 750);
       }
       break;
     case 'grid':
-      if (puzzle.grid) setTimeout(() => runGridFlash(puzzle.grid, puzzle.flashTotalMs || 6000), 750);
+      if (!skipFlash && puzzle.grid) setTimeout(() => runGridFlash(puzzle.grid, puzzle.flashTotalMs || 6000), 750);
       break;
     case 'flash_text':
-      setTimeout(() => runFlashText(puzzle.stimulusText || '', puzzle.flashTotalMs || 4000), 750);
+      if (!skipFlash) setTimeout(() => runFlashText(puzzle.stimulusText || '', puzzle.flashTotalMs || 4000), 750);
       break;
     case 'static_text':
     default:
