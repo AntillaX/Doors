@@ -7,6 +7,8 @@ const MAX_PLAYERS = 5;
 const MIN_PLAYERS_TO_START = 4;
 // 60-second reconnection window per the DOORS spec.
 const DISCONNECT_GRACE_MS = 60000;
+// Shorter grace for lobby/finished disconnects so a refresh isn't a hard kick.
+const LOBBY_DISCONNECT_GRACE_MS = 30000;
 // Tick interval for broadcasting the countdown to remaining players.
 const COUNTDOWN_TICK_MS = 1000;
 
@@ -48,14 +50,19 @@ class Room {
 
   // ── Disconnect / reconnect ────────────────────────────────────────
 
-  handleDisconnect(playerId) {
+  handleDisconnect(playerId, oldWs) {
     const player = this.players.get(playerId);
     if (!player) return;
+    // If the player has already reconnected via a different ws (e.g. tab refresh
+    // races the old socket's close event), ignore the stale disconnect.
+    if (oldWs && player.ws && player.ws !== oldWs) return;
     player.connected = false;
     player.ws = null;
 
     if (this.state === 'lobby') {
-      this._removeLobbyPlayer(playerId);
+      // Keep the slot reserved briefly so a tab-refresh can rejoin.
+      this.broadcast({ type: 'player_disconnected', playerId, playerName: player.name, ...this.getState() });
+      this._startLobbyGraceTimer(playerId);
       return;
     }
 
@@ -126,9 +133,21 @@ class Room {
     const entry = this.graceTimers.get(playerId);
     if (entry) {
       clearTimeout(entry.timeout);
-      clearInterval(entry.interval);
+      if (entry.interval) clearInterval(entry.interval);
       this.graceTimers.delete(playerId);
     }
+  }
+
+  _startLobbyGraceTimer(playerId) {
+    this._clearGraceTimer(playerId);
+    const timeout = setTimeout(() => {
+      this.graceTimers.delete(playerId);
+      const p = this.players.get(playerId);
+      if (!p || p.connected) return;
+      // Grace expired without rejoin — actually remove from lobby.
+      if (this.state === 'lobby') this._removeLobbyPlayer(playerId);
+    }, LOBBY_DISCONNECT_GRACE_MS);
+    this.graceTimers.set(playerId, { timeout, interval: null });
   }
 
   _onGraceExpired(playerId) {

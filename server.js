@@ -71,7 +71,7 @@ wss.on('connection', (ws) => {
     if (ws.roomCode && ws.playerId) {
       const room = rooms.get(ws.roomCode);
       if (room) {
-        room.handleDisconnect(ws.playerId);
+        room.handleDisconnect(ws.playerId, ws);
         if (room.isEmpty()) { room.destroy(); rooms.delete(ws.roomCode); }
       }
     }

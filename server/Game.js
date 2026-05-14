@@ -350,7 +350,7 @@ class Game {
   getPublicState() {
     const elapsed = this.gameStartTime ? Date.now() - this.gameStartTime : 0;
     const active = this._activePlayers();
-    return {
+    const state = {
       phase: this.phase,
       totalRooms: this.totalRooms,
       currentRoom: this.currentRoom,
@@ -370,6 +370,10 @@ class Game {
       delivererText: this.delivererText,
       gameTimerMs: Math.max(0, GAME_DURATION_MS - elapsed),
     };
+    if (this.phase === 'game_starting' && this.gameStartTime) {
+      state.countdown = Math.max(0, Math.ceil((PRE_GAME_DELAY_MS - elapsed) / 1000));
+    }
+    return state;
   }
 
   // ── Helpers ───────────────────────────────────────────────────────

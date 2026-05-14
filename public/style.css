@@ -511,7 +511,9 @@ body::after {
   flex-direction: column;
   gap: 1.2rem;
   position: relative;
-  z-index: 1;
+  /* Above doors (z-index 5) so flash/grid stimuli are never hidden by a stuck
+     or in-flight door animation. Doors still slide visibly at the edges. */
+  z-index: 6;
 }
 
 /* Flash sequence */
