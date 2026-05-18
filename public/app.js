@@ -1084,10 +1084,5 @@ function showToast(msg) {
   toastTimer = setTimeout(() => { el.hidden = true; }, 1800);
 }
 
-// ── gtag guard ────────────────────────────────────────────────
-function gtag() {
-  if (typeof window.gtag === 'function') window.gtag(...arguments);
-}
-
 // ── Start ─────────────────────────────────────────────────────
 init();
