@@ -706,7 +706,14 @@ function renderVoteArea(state) {
     countEl.textContent = voteCount > 0 ? `${voteCount}` : '';
     btn.appendChild(countEl);
 
-    btn.addEventListener('click', () => sendAction({ type: 'cast_vote', targetId: p.id }));
+    btn.addEventListener('click', () => {
+      // Local click feedback so flaky connections still feel responsive
+      // — server echo of the tally may take a moment.
+      btn.classList.remove('just-clicked');
+      void btn.offsetWidth; // force reflow so the animation retriggers on rapid clicks
+      btn.classList.add('just-clicked');
+      sendAction({ type: 'cast_vote', targetId: p.id });
+    });
     container.appendChild(btn);
   }
 
@@ -916,8 +923,11 @@ function renderTimer(ms) {
   const totalSec = Math.max(0, Math.ceil(ms / 1000));
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
-  $('game-timer').textContent = `${m}:${String(s).padStart(2, '0')}`;
-  $('game-timer').classList.toggle('warning', totalSec < 300);
+  const el = $('game-timer');
+  el.textContent = `${m}:${String(s).padStart(2, '0')}`;
+  // Two-stage urgency: amber from 10 min, red + pulse from 5 min.
+  el.classList.toggle('warning', totalSec < 600);
+  el.classList.toggle('critical', totalSec < 300);
 }
 
 // ── Ambient gradient ──────────────────────────────────────────
@@ -992,15 +1002,23 @@ function renderGameOver(state) {
   const totalRooms = (lastState && lastState.totalRooms) || 10;
 
   const titleEl = $('over-title');
+  // Title is personal — survivors who reached room 10 see WON even when
+  // the team didn't formally clear (timeout / table-failed mid-room-10).
+  const me = (summary || []).find(p => p.id === myId);
+  const personalWin = !!(me && me.result === 'won');
+
   if (reason === 'cleared') {
     titleEl.textContent = 'CLEARED';
+    titleEl.className = 'over-title cleared';
+    gtag('event', 'doors_game_won');
+  } else if (personalWin) {
+    titleEl.textContent = 'WON';
     titleEl.className = 'over-title cleared';
     gtag('event', 'doors_game_won');
   } else {
     titleEl.textContent = 'FAILED';
     titleEl.className = 'over-title';
-    const me = (summary || []).find(p => p.id === myId);
-    if (me && me.result !== 'won') gtag('event', 'doors_game_lost');
+    gtag('event', 'doors_game_lost');
     if (reason === 'table_failed') gtag('event', 'doors_table_failed');
   }
 
