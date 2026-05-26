@@ -320,13 +320,20 @@ class Game {
     this._clearPhaseTimeout();
     if (this.gameTimerInterval) { clearInterval(this.gameTimerInterval); this.gameTimerInterval = null; }
 
+    // Surviving to room 10 counts as a win, even if the timer ran out
+    // before the room was cleared or a teammate elimination tipped the
+    // table below MIN_ACTIVE_PLAYERS mid-room-10. `reason==='cleared'`
+    // always implies currentRoom >= totalRooms, so this subsumes the
+    // cleared case.
+    const reachedFinalRoom = this.currentRoom >= this.totalRooms;
+
     const summary = [...this.players.values()].map(ps => {
       let result;
       if (ps.eliminated) {
         result = ps.eliminationCause === 'table_failed'
           ? 'table_failed'
           : `eliminated_room_${ps.eliminatedRoom}`;
-      } else if (reason === 'cleared') {
+      } else if (reachedFinalRoom) {
         result = 'won';
       } else if (reason === 'table_failed') {
         result = 'table_failed';
